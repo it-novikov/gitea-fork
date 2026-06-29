@@ -50,6 +50,17 @@ const (
 	TplActivatePrompt       templates.TplName = "user/auth/activate_prompt"        // for showing a message for user activation
 )
 
+const (
+	kcpIdentityChallengeIDKey      = "kcpIdentityChallengeID"
+	kcpIdentityChallengeModeKey    = "kcpIdentityChallengeMode"
+	kcpIdentityChallengePhoneKey   = "kcpIdentityChallengePhone"
+	kcpIdentityChallengeChannelKey = "kcpIdentityChallengeChannel"
+	kcpIdentityMaskedTargetKey     = "kcpIdentityMaskedTarget"
+	kcpIdentityRedirectToKey       = "kcpIdentityRedirectTo"
+	kcpIdentityDisplayNameKey      = "kcpIdentityDisplayName"
+	kcpIdentityInvitationCodeKey   = "kcpIdentityInvitationCode"
+)
+
 type CommonAuthOptions struct {
 	EnableCaptcha bool
 }
@@ -436,12 +447,15 @@ func kcpIdentityStartChallenge(ctx *context.Context) {
 		ctx.RenderWithErrDeprecated("KYBa Identity Service did not start the challenge: "+err.Error(), tplKCPIdentitySignIn, nil)
 		return
 	}
-	if err := ctx.Session.Set("kcpIdentityChallengeID", resp.ChallengeID); err != nil {
+	if err := ctx.Session.Set(kcpIdentityChallengeIDKey, resp.ChallengeID); err != nil {
 		ctx.ServerError("KYBa Identity challenge session", err)
 		return
 	}
-	_ = ctx.Session.Set("kcpIdentityMaskedTarget", resp.MaskedTarget)
-	_ = ctx.Session.Set("kcpIdentityRedirectTo", ctx.FormString("redirect_to"))
+	_ = ctx.Session.Set(kcpIdentityChallengeModeKey, "signin")
+	_ = ctx.Session.Set(kcpIdentityChallengePhoneKey, phone)
+	_ = ctx.Session.Set(kcpIdentityChallengeChannelKey, delivery)
+	_ = ctx.Session.Set(kcpIdentityMaskedTargetKey, resp.MaskedTarget)
+	_ = ctx.Session.Set(kcpIdentityRedirectToKey, ctx.FormString("redirect_to"))
 	ctx.Redirect(setting.AppSubURL + "/user/identity/challenge")
 }
 
@@ -452,7 +466,11 @@ func IdentityChallenge(ctx *context.Context) {
 	}
 	prepareKCPIdentityPageData(ctx)
 	ctx.Data["Title"] = "KYBa Identity challenge"
-	masked, _ := ctx.Session.Get("kcpIdentityMaskedTarget").(string)
+	mode, _ := ctx.Session.Get(kcpIdentityChallengeModeKey).(string)
+	if mode == "signup" {
+		ctx.Data["Title"] = "KYBa registration challenge"
+	}
+	masked, _ := ctx.Session.Get(kcpIdentityMaskedTargetKey).(string)
 	if masked == "" {
 		masked = "+•• ••• ••"
 	}
@@ -466,11 +484,14 @@ func IdentityChallengePost(ctx *context.Context) {
 		return
 	}
 	prepareKCPIdentityPageData(ctx)
-	challengeID, _ := ctx.Session.Get("kcpIdentityChallengeID").(string)
+	challengeID, _ := ctx.Session.Get(kcpIdentityChallengeIDKey).(string)
 	if challengeID == "" {
 		ctx.Redirect(setting.AppSubURL + "/user/login")
 		return
 	}
+	mode, _ := ctx.Session.Get(kcpIdentityChallengeModeKey).(string)
+	phone, _ := ctx.Session.Get(kcpIdentityChallengePhoneKey).(string)
+	channel, _ := ctx.Session.Get(kcpIdentityChallengeChannelKey).(string)
 	code := strings.TrimSpace(ctx.FormString("code"))
 	if code == "" {
 		ctx.Data["Err_Code"] = true
@@ -478,14 +499,38 @@ func IdentityChallengePost(ctx *context.Context) {
 		return
 	}
 	client := kcpidentity.NewClient()
-	resp, err := client.VerifyChallenge(ctx, kcpidentity.ChallengeVerifyRequest{
-		ChallengeID: challengeID,
-		Code:        code,
-		Remember:    ctx.FormBool("remember"),
-	})
-	if err != nil {
-		ctx.RenderWithErrDeprecated("KYBa Identity Service rejected the challenge: "+err.Error(), tplKCPIdentityChallenge, nil)
-		return
+	var (
+		resp kcpidentity.ChallengeVerifyResponse
+		err  error
+	)
+	if mode == "signup" {
+		displayName, _ := ctx.Session.Get(kcpIdentityDisplayNameKey).(string)
+		invitationCode, _ := ctx.Session.Get(kcpIdentityInvitationCodeKey).(string)
+		registerResp, registerErr := client.Register(ctx, kcpidentity.RegisterRequest{
+			DisplayName:    displayName,
+			Phone:          phone,
+			ChallengeID:    challengeID,
+			Code:           code,
+			InvitationCode: invitationCode,
+			ClientID:       kcpidentity.LoadSettings().ClientID,
+		})
+		if registerErr != nil {
+			ctx.RenderWithErrDeprecated("KYBa Identity Service rejected the registration challenge: "+registerErr.Error(), tplKCPIdentityChallenge, nil)
+			return
+		}
+		resp = kcpidentity.ChallengeVerifyResponse{Principal: registerResp.Principal}
+	} else {
+		resp, err = client.VerifyChallenge(ctx, kcpidentity.ChallengeVerifyRequest{
+			Phone:       phone,
+			ChallengeID: challengeID,
+			Channel:     channel,
+			Code:        code,
+			Remember:    ctx.FormBool("remember"),
+		})
+		if err != nil {
+			ctx.RenderWithErrDeprecated("KYBa Identity Service rejected the challenge: "+err.Error(), tplKCPIdentityChallenge, nil)
+			return
+		}
 	}
 	u, err := kcpidentity_service.EnsureShadowUser(ctx, resp.Principal, ctx.RemoteAddr(), ctx.Req.UserAgent())
 	if err != nil {
@@ -756,23 +801,26 @@ func kcpIdentityRegister(ctx *context.Context) {
 		return
 	}
 	client := kcpidentity.NewClient()
-	resp, err := client.Register(ctx, kcpidentity.RegisterRequest{
-		DisplayName:    displayName,
-		Phone:          phone,
-		InvitationCode: invitationCode,
-		ClientID:       kcpidentity.LoadSettings().ClientID,
+	resp, err := client.StartRegistration(ctx, kcpidentity.ChallengeStartRequest{
+		Phone:    phone,
+		Delivery: "sms",
+		ClientID: kcpidentity.LoadSettings().ClientID,
 	})
 	if err != nil {
-		ctx.RenderWithErrDeprecated("KYBa Identity Service rejected registration: "+err.Error(), tplKCPIdentitySignUp, nil)
+		ctx.RenderWithErrDeprecated("KYBa Identity Service did not start registration: "+err.Error(), tplKCPIdentitySignUp, nil)
 		return
 	}
-	u, err := kcpidentity_service.EnsureShadowUser(ctx, resp.Principal, ctx.RemoteAddr(), ctx.Req.UserAgent())
-	if err != nil {
-		ctx.ServerError("KYBa Identity shadow user", err)
+	if err := ctx.Session.Set(kcpIdentityChallengeIDKey, resp.ChallengeID); err != nil {
+		ctx.ServerError("KYBa Identity registration session", err)
 		return
 	}
-	ctx.Flash.Success("Account created through KYBa Identity Service. Access grants are assigned separately by an administrator.")
-	handleSignIn(ctx, u, false)
+	_ = ctx.Session.Set(kcpIdentityChallengeModeKey, "signup")
+	_ = ctx.Session.Set(kcpIdentityChallengePhoneKey, phone)
+	_ = ctx.Session.Set(kcpIdentityChallengeChannelKey, "sms")
+	_ = ctx.Session.Set(kcpIdentityMaskedTargetKey, resp.MaskedTarget)
+	_ = ctx.Session.Set(kcpIdentityDisplayNameKey, displayName)
+	_ = ctx.Session.Set(kcpIdentityInvitationCodeKey, invitationCode)
+	ctx.Redirect(setting.AppSubURL + "/user/identity/challenge")
 }
 
 // createAndHandleCreatedUser calls createUserInContext and

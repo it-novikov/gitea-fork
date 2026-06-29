@@ -18,12 +18,10 @@
 							<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• 44" autocomplete="tel" inputmode="tel" required autofocus>
 							<div class="help">Use the phone registered in KYBa Identity Service.</div>
 						</div>
-						<div class="field">
-							<label>Delivery method</label>
-							<div class="ui two item menu">
-								<label class="item"><input type="radio" name="delivery" value="sms" checked> SMS</label>
-								<label class="item"><input type="radio" name="delivery" value="voice"> Voice</label>
-							</div>
+						<input type="hidden" name="delivery" value="sms">
+						<div class="ui info message">
+							<div class="header">SMS verification</div>
+							<p>The current KYBa Identity deployment accepts SMS challenges for Gitea sign-in.</p>
 						</div>
 						<input type="hidden" name="redirect_to" value="{{.RedirectTo}}">
 						<div class="field">
