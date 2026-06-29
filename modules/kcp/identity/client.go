@@ -295,7 +295,7 @@ func (c Client) StartRecovery(ctx context.Context, req RecoveryStartRequest) (Re
 		Channel string `json:"channel"`
 	}{
 		Phone:   req.Phone,
-		Channel: "sms",
+		Channel: "SMS",
 	}
 	var out challengeDispatchResponse
 	if err := c.post(ctx, c.settings.RecoveryStartPath, input, &out); err != nil {
@@ -370,8 +370,8 @@ func normalizeChannel(delivery, channel string) string {
 	}
 	switch value {
 	case "push":
-		return "push"
+		return "PUSH"
 	default:
-		return "sms"
+		return "SMS"
 	}
 }
