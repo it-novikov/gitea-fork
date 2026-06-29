@@ -24,6 +24,7 @@ type repoKCPNavItem struct {
 
 type repoKCPFileRow struct {
 	Path        string
+	Name        string
 	CapsuleID   string
 	Mode        string
 	SourceRepo  string
@@ -200,6 +201,7 @@ func repoKCPExportRows(repoName string, entries []repoKCPTreeEntry, selection re
 		}
 		rows = append(rows, repoKCPFileRow{
 			Path:        folder,
+			Name:        repoKCPBaseName(folder),
 			CapsuleID:   capsuleID,
 			Mode:        "folder",
 			SourceRepo:  repoName,
@@ -213,6 +215,7 @@ func repoKCPExportRows(repoName string, entries []repoKCPTreeEntry, selection re
 	for _, file := range files {
 		rows = append(rows, repoKCPFileRow{
 			Path:        file,
+			Name:        repoKCPBaseName(file),
 			CapsuleID:   capsuleID,
 			Mode:        repoKCPModeForPath(file, false),
 			SourceRepo:  repoName,
@@ -242,6 +245,7 @@ func repoKCPImportedRows(repoName string, entries []repoKCPTreeEntry) []repoKCPF
 		}
 		rows = append(rows, repoKCPFileRow{
 			Path:        file,
+			Name:        repoKCPBaseName(file),
 			CapsuleID:   capsuleID,
 			Mode:        repoKCPModeForPath(file, true),
 			SourceRepo:  repoKCPSourceRepoFromCapsuleID(capsuleID),
@@ -457,6 +461,15 @@ func repoKCPParentPath(path string) string {
 		return ""
 	}
 	return path[:idx]
+}
+
+func repoKCPBaseName(path string) string {
+	path = repoKCPNormalizePath(path)
+	idx := strings.LastIndex(path, "/")
+	if idx < 0 {
+		return path
+	}
+	return path[idx+1:]
 }
 
 func repoKCPPathDepth(path string) int {

@@ -60,20 +60,130 @@
 
 		{{if eq .KCPRepo.SubPage "exports"}}
 			<h3 class="ui dividing header">Choose files exported by this repository</h3>
+			<style>
+				.kcp-export-tree {
+					border: 1px solid var(--color-secondary);
+					border-radius: 0.5rem;
+					background: var(--color-box-body);
+					overflow: hidden;
+					margin-bottom: 1rem;
+				}
+				.kcp-tree-row {
+					display: grid;
+					grid-template-columns: minmax(18rem, 1fr) auto minmax(16rem, 32%);
+					align-items: center;
+					gap: 1rem;
+					min-height: 2.5rem;
+					padding: 0.35rem 0.75rem;
+					border-top: 1px solid var(--color-secondary);
+				}
+				.kcp-tree-row:first-child {
+					border-top: 0;
+				}
+				.kcp-tree-row[data-kcp-hidden="true"] {
+					display: none;
+				}
+				.kcp-tree-node {
+					display: flex;
+					align-items: center;
+					min-width: 0;
+					padding-left: calc(var(--kcp-depth) * 1.25rem);
+				}
+				.kcp-tree-toggle,
+				.kcp-tree-toggle-spacer {
+					flex: 0 0 1.4rem;
+					width: 1.4rem;
+					height: 1.4rem;
+					margin-right: 0.25rem;
+				}
+				.kcp-tree-toggle {
+					border: 0;
+					border-radius: 0.25rem;
+					background: transparent;
+					color: var(--color-text-light);
+					cursor: pointer;
+					line-height: 1;
+				}
+				.kcp-tree-toggle:hover {
+					background: var(--color-hover);
+					color: var(--color-text);
+				}
+				.kcp-tree-label {
+					display: flex;
+					align-items: center;
+					min-width: 0;
+					gap: 0.5rem;
+					margin: 0;
+					cursor: pointer;
+				}
+				.kcp-tree-checkbox {
+					appearance: auto;
+					-webkit-appearance: checkbox;
+					position: static;
+					opacity: 1;
+					pointer-events: auto;
+					flex: 0 0 auto;
+					width: 1rem;
+					height: 1rem;
+					margin: 0;
+					cursor: pointer;
+				}
+				.kcp-tree-kind {
+					flex: 0 0 auto;
+					color: var(--color-text-light);
+					font-size: 0.85rem;
+				}
+				.kcp-tree-name {
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					font-family: var(--fonts-monospace);
+				}
+				.kcp-tree-meta,
+				.kcp-tree-path {
+					color: var(--color-text-light);
+					font-size: 0.85rem;
+					white-space: nowrap;
+				}
+				.kcp-tree-path {
+					overflow: hidden;
+					text-overflow: ellipsis;
+					font-family: var(--fonts-monospace);
+				}
+				.kcp-tree-empty {
+					padding: 1.5rem;
+					text-align: center;
+					color: var(--color-text-light);
+				}
+				@media (max-width: 767px) {
+					.kcp-tree-row {
+						grid-template-columns: minmax(0, 1fr);
+						gap: 0.25rem;
+					}
+					.kcp-tree-meta,
+					.kcp-tree-path {
+						padding-left: calc(var(--kcp-depth) * 1.25rem + 1.65rem);
+					}
+				}
+			</style>
 			<form class="ui form" method="post" action="{{.RepoLink}}/kcp/exports" data-kcp-export-form>
 				{{$.CsrfTokenHtml}}
 				<div class="ui small basic buttons tw-mb-3">
 					<button class="ui button" type="button" data-kcp-select-all> Select all files</button>
 					<button class="ui button" type="button" data-kcp-clear-selection>Clear selection</button>
 				</div>
-				<table class="ui celled table">
-					<thead><tr><th class="collapsing">Export</th><th>Path</th><th>Capsule</th><th>Target</th><th>Mode</th><th>Description</th></tr></thead>
-					<tbody>
+				<div class="kcp-export-tree" role="tree" aria-label="Repository export file tree">
 					{{range .KCPRepo.ExportFiles}}
-						<tr>
-							<td class="collapsing">
-								<div class="ui checkbox">
+						<div class="kcp-tree-row" role="treeitem" data-kcp-tree-row data-kcp-kind="{{if .IsDir}}dir{{else}}file{{end}}" data-kcp-path="{{.Path}}">
+							<div class="kcp-tree-node" style="--kcp-depth: {{.Depth}};">
+								{{if .IsDir}}
+									<button class="kcp-tree-toggle" type="button" aria-label="Collapse {{.Path}}" aria-expanded="true" data-kcp-toggle data-kcp-path="{{.Path}}">-</button>
+								{{else}}
+									<span class="kcp-tree-toggle-spacer" aria-hidden="true"></span>
+								{{end}}
+								<label class="kcp-tree-label">
 									<input
+										class="kcp-tree-checkbox"
 										type="checkbox"
 										name="{{if .IsDir}}export_dirs{{else}}export_files{{end}}"
 										value="{{.Path}}"
@@ -82,28 +192,22 @@
 										data-kcp-path="{{.Path}}"
 										data-kcp-partial="{{if .Partial}}true{{else}}false{{end}}"
 										{{if .Selected}}checked{{end}}>
-									<label></label>
-								</div>
-							</td>
-							<td>
-								<span style="padding-left: {{.Depth}}.25rem">
-									{{if .IsDir}}<span class="ui tiny label">folder</span>{{end}}
-									<code>{{.Path}}</code>
-									{{if .IsDir}}<span class="text light"> · {{.FileCount}} files</span>{{end}}
-								</span>
-							</td>
-							<td><code>{{.CapsuleID}}</code></td>
-							<td>{{.TargetRepo}}</td>
-							<td><span class="ui small label">{{.Mode}}</span></td>
-							<td>{{.Description}}</td>
-						</tr>
+									<span class="kcp-tree-kind">{{if .IsDir}}folder{{else}}file{{end}}</span>
+									<span class="kcp-tree-name">{{.Name}}</span>
+								</label>
+							</div>
+							<div class="kcp-tree-meta" style="--kcp-depth: {{.Depth}};">
+								<span class="ui small label">{{.Mode}}</span>
+								{{if .IsDir}}<span>{{.FileCount}} files</span>{{end}}
+							</div>
+							<code class="kcp-tree-path" style="--kcp-depth: {{.Depth}};">{{.Path}}</code>
+						</div>
 					{{else}}
-						<tr>
-							<td colspan="6" class="center aligned text light">This repository has no files available for KCP export.</td>
-						</tr>
+						<div class="kcp-tree-empty">
+							This repository has no files available for KCP export.
+						</div>
 					{{end}}
-					</tbody>
-				</table>
+				</div>
 				<div class="field">
 					<button class="ui primary button" type="submit">Save export selection preview</button>
 					<span class="text light" data-kcp-selection-count>{{.KCPRepo.SelectedCount}} files selected for export preview.</span>
@@ -133,11 +237,36 @@
 	const form = document.querySelector('[data-kcp-export-form]');
 	if (form) {
 		const boxes = Array.from(form.querySelectorAll('[data-kcp-export-checkbox]'));
+		const rows = Array.from(form.querySelectorAll('[data-kcp-tree-row]'));
+		const toggles = Array.from(form.querySelectorAll('[data-kcp-toggle]'));
 		const count = form.querySelector('[data-kcp-selection-count]');
+		const collapsed = new Set();
 		const files = () => boxes.filter((box) => box.dataset.kcpKind === 'file');
 		const dirs = () => boxes.filter((box) => box.dataset.kcpKind === 'dir');
+		const parentPath = (path) => {
+			const index = path.lastIndexOf('/');
+			return index > 0 ? path.slice(0, index) : '';
+		};
 		const under = (path, dir) => path !== dir && path.startsWith(`${dir}/`);
 		const descendantFiles = (dir) => files().filter((box) => under(box.dataset.kcpPath, dir));
+		const isHiddenByCollapsedParent = (path) => {
+			for (let parent = parentPath(path); parent; parent = parentPath(parent)) {
+				if (collapsed.has(parent)) return true;
+			}
+			return false;
+		};
+		const updateTreeVisibility = () => {
+			for (const row of rows) {
+				row.dataset.kcpHidden = isHiddenByCollapsedParent(row.dataset.kcpPath) ? 'true' : 'false';
+			}
+			for (const toggle of toggles) {
+				const path = toggle.dataset.kcpPath;
+				const isCollapsed = collapsed.has(path);
+				toggle.textContent = isCollapsed ? '+' : '-';
+				toggle.setAttribute('aria-expanded', String(!isCollapsed));
+				toggle.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${path}`);
+			}
+		};
 		const updateFolders = () => {
 			for (const box of dirs()) {
 				const children = descendantFiles(box.dataset.kcpPath);
@@ -155,6 +284,17 @@
 			updateFolders();
 			updateCount();
 		};
+		for (const toggle of toggles) {
+			toggle.addEventListener('click', () => {
+				const path = toggle.dataset.kcpPath;
+				if (collapsed.has(path)) {
+					collapsed.delete(path);
+				} else {
+					collapsed.add(path);
+				}
+				updateTreeVisibility();
+			});
+		}
 		for (const box of boxes) {
 			box.indeterminate = box.dataset.kcpPartial === 'true';
 			box.addEventListener('change', () => {
@@ -184,6 +324,7 @@
 			update();
 		});
 		update();
+		updateTreeVisibility();
 	}
 </script>
 {{end}}
