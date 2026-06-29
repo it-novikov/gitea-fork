@@ -21,7 +21,7 @@
 					<div class="content"><div class="header">Imported files</div><div class="description">{{len .KCPRepo.ImportedFiles}} materialized files visible in this repository context.</div></div>
 				</a>
 				<a class="card" href="{{.RepoLink}}/kcp/exports">
-					<div class="content"><div class="header">Exported files</div><div class="description">{{len .KCPRepo.ExportFiles}} candidate files selected for exported capsules.</div></div>
+					<div class="content"><div class="header">Exported files</div><div class="description">{{len .KCPRepo.ExportFiles}} repository tree entries available for exported capsules.</div></div>
 				</a>
 				<a class="card" href="{{.RepoLink}}/kcp/impact">
 					<div class="content"><div class="header">Impact</div><div class="description">{{len .KCPRepo.Impact}} dependent maintenance records and draft PR plans.</div></div>
@@ -49,6 +49,10 @@
 						<td><span class="ui small label">{{.Mode}}</span></td>
 						<td>{{.Description}}</td>
 					</tr>
+				{{else}}
+					<tr>
+						<td colspan="5" class="center aligned text light">No materialized imported capsule files were found under <code>.kyba/imported-capsules/</code> in this repository.</td>
+					</tr>
 				{{end}}
 				</tbody>
 			</table>
@@ -56,31 +60,53 @@
 
 		{{if eq .KCPRepo.SubPage "exports"}}
 			<h3 class="ui dividing header">Choose files exported by this repository</h3>
-			<form class="ui form" method="post" action="{{.RepoLink}}/kcp/exports">
+			<form class="ui form" method="post" action="{{.RepoLink}}/kcp/exports" data-kcp-export-form>
 				{{$.CsrfTokenHtml}}
+				<div class="ui small basic buttons tw-mb-3">
+					<button class="ui button" type="button" data-kcp-select-all> Select all files</button>
+					<button class="ui button" type="button" data-kcp-clear-selection>Clear selection</button>
+				</div>
 				<table class="ui celled table">
-					<thead><tr><th class="collapsing">Export</th><th>File</th><th>Capsule</th><th>Target</th><th>Mode</th><th>Description</th></tr></thead>
+					<thead><tr><th class="collapsing">Export</th><th>Path</th><th>Capsule</th><th>Target</th><th>Mode</th><th>Description</th></tr></thead>
 					<tbody>
 					{{range .KCPRepo.ExportFiles}}
 						<tr>
 							<td class="collapsing">
 								<div class="ui checkbox">
-									<input type="checkbox" name="export_files" value="{{.Path}}" {{if .Selected}}checked{{end}}>
+									<input
+										type="checkbox"
+										name="{{if .IsDir}}export_dirs{{else}}export_files{{end}}"
+										value="{{.Path}}"
+										data-kcp-export-checkbox
+										data-kcp-kind="{{if .IsDir}}dir{{else}}file{{end}}"
+										data-kcp-path="{{.Path}}"
+										data-kcp-partial="{{if .Partial}}true{{else}}false{{end}}"
+										{{if .Selected}}checked{{end}}>
 									<label></label>
 								</div>
 							</td>
-							<td><code>{{.Path}}</code></td>
+							<td>
+								<span style="padding-left: {{.Depth}}.25rem">
+									{{if .IsDir}}<span class="ui tiny label">folder</span>{{end}}
+									<code>{{.Path}}</code>
+									{{if .IsDir}}<span class="text light"> · {{.FileCount}} files</span>{{end}}
+								</span>
+							</td>
 							<td><code>{{.CapsuleID}}</code></td>
 							<td>{{.TargetRepo}}</td>
 							<td><span class="ui small label">{{.Mode}}</span></td>
 							<td>{{.Description}}</td>
+						</tr>
+					{{else}}
+						<tr>
+							<td colspan="6" class="center aligned text light">This repository has no files available for KCP export.</td>
 						</tr>
 					{{end}}
 					</tbody>
 				</table>
 				<div class="field">
 					<button class="ui primary button" type="submit">Save export selection preview</button>
-					<span class="text light">{{.KCPRepo.SelectedCount}} files selected. Persistent storage is handled by the repository-interface service.</span>
+					<span class="text light" data-kcp-selection-count>{{.KCPRepo.SelectedCount}} files selected for export preview.</span>
 				</div>
 			</form>
 		{{end}}
@@ -92,10 +118,73 @@
 				<tbody>
 				{{range .KCPRepo.Impact}}
 					<tr><td><code>{{.CapsuleID}}</code></td><td>{{.Repository}}</td><td><span class="ui small label">{{.Status}}</span></td><td>{{.Task}}</td><td>{{.DraftPR}}</td></tr>
+				{{else}}
+					<tr>
+						<td colspan="5" class="center aligned text light">No repository-scoped KCP impact records were found for the current imports or export preview.</td>
+					</tr>
 				{{end}}
 				</tbody>
 			</table>
 		{{end}}
 	</div>
 </div>
+{{if eq .KCPRepo.SubPage "exports"}}
+<script type="module">
+	const form = document.querySelector('[data-kcp-export-form]');
+	if (form) {
+		const boxes = Array.from(form.querySelectorAll('[data-kcp-export-checkbox]'));
+		const count = form.querySelector('[data-kcp-selection-count]');
+		const files = () => boxes.filter((box) => box.dataset.kcpKind === 'file');
+		const dirs = () => boxes.filter((box) => box.dataset.kcpKind === 'dir');
+		const under = (path, dir) => path !== dir && path.startsWith(`${dir}/`);
+		const descendantFiles = (dir) => files().filter((box) => under(box.dataset.kcpPath, dir));
+		const updateFolders = () => {
+			for (const box of dirs()) {
+				const children = descendantFiles(box.dataset.kcpPath);
+				const selected = children.filter((child) => child.checked).length;
+				box.checked = children.length > 0 && selected === children.length;
+				box.indeterminate = selected > 0 && selected < children.length;
+			}
+		};
+		const updateCount = () => {
+			if (!count) return;
+			const selected = files().filter((box) => box.checked).length;
+			count.textContent = `${selected} ${selected === 1 ? 'file' : 'files'} selected for export preview.`;
+		};
+		const update = () => {
+			updateFolders();
+			updateCount();
+		};
+		for (const box of boxes) {
+			box.indeterminate = box.dataset.kcpPartial === 'true';
+			box.addEventListener('change', () => {
+				if (box.dataset.kcpKind === 'dir') {
+					for (const child of boxes) {
+						if (under(child.dataset.kcpPath, box.dataset.kcpPath)) {
+							child.checked = box.checked;
+							child.indeterminate = false;
+						}
+					}
+				}
+				update();
+			});
+		}
+		form.querySelector('[data-kcp-select-all]')?.addEventListener('click', () => {
+			for (const box of boxes) {
+				box.checked = true;
+				box.indeterminate = false;
+			}
+			update();
+		});
+		form.querySelector('[data-kcp-clear-selection]')?.addEventListener('click', () => {
+			for (const box of boxes) {
+				box.checked = false;
+				box.indeterminate = false;
+			}
+			update();
+		});
+		update();
+	}
+</script>
+{{end}}
 {{template "base/footer" .}}
