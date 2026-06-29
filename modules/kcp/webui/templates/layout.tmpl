@@ -1,0 +1,27 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}} · KYBa KCP</title>
+  <link rel="stylesheet" href="/assets/kcp-capsules.css">
+</head>
+<body class="kcp-page">
+  <aside class="kcp-sidebar">
+    <div class="kcp-brand">KYBa KCP</div>
+    <nav>
+      {{range .Nav}}
+      <a class="kcp-nav{{if .Active}} is-active{{end}}" href="/kcp/{{.Page}}">{{.Title}}</a>
+      {{end}}
+    </nav>
+  </aside>
+  <main class="kcp-main">
+    <header class="kcp-header">
+      <h1>{{.Title}}</h1>
+      <p>{{.UpstreamNotice}}</p>
+    </header>
+    {{if eq .Page "capsules"}}{{template "capsules" .}}{{else if eq .Page "imports"}}{{template "imports" .}}{{else if eq .Page "impact"}}{{template "impact" .}}{{else if eq .Page "export"}}{{template "export" .}}{{else}}{{template "dashboard" .}}{{end}}
+  </main>
+</body>
+</html>
+{{end}}

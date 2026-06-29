@@ -1,0 +1,41 @@
+{
+  "assigned_files": [
+    "ci/gitea_fork.py",
+    "integrations/gitea-fork/README.md",
+    "integrations/gitea-fork/UPSTREAM_POLICY.md",
+    "integrations/gitea-fork/capsules/capsule.go",
+    "integrations/gitea-fork/capsules/capsule_test.go",
+    "integrations/gitea-fork/exporter/exporter.go",
+    "integrations/gitea-fork/exporter/exporter_test.go",
+    "integrations/gitea-fork/go.mod",
+    "integrations/gitea-fork/hierarchy/hierarchy.go",
+    "integrations/gitea-fork/hierarchy/hierarchy_test.go",
+    "integrations/gitea-fork/migrations/0001_kcp_repository_hierarchy.sql",
+    "integrations/gitea-fork/migrations/0002_kcp_repository_interfaces.sql",
+    "integrations/gitea-fork/migrations/0003_kcp_archive_export_runs.sql",
+    "integrations/gitea-fork/migrations/0004_kcp_capsule_tasks_and_draft_prs.sql",
+    "integrations/gitea-fork/openapi/kcp-capsules-and-export.yaml",
+    "integrations/gitea-fork/openapi/kcp-hierarchy.yaml",
+    "integrations/gitea-fork/service/service.go",
+    "integrations/gitea-fork/service/service_test.go",
+    "integrations/gitea-fork/upstream/gitea.lock.json",
+    "kotlin/provider-gitea/build.gradle.kts",
+    "kotlin/provider-gitea/src/main/kotlin/com/knowledgecell/provider/gitea/GiteaConfiguration.kt",
+    "kotlin/provider-gitea/src/main/kotlin/com/knowledgecell/provider/gitea/GiteaProvider.kt",
+    "kotlin/provider-gitea/src/main/resources/META-INF/services/com.knowledgecell.provider.spi.ProviderOperationFactory",
+    "kotlin/provider-gitea/src/test/kotlin/com/knowledgecell/provider/gitea/GiteaConfigurationTest.kt",
+    "kotlin/provider-gitea/src/test/kotlin/com/knowledgecell/provider/gitea/GiteaPublicationTest.kt"
+  ],
+  "depends_on": [
+    "kyba"
+  ],
+  "description": "Gitea fork, repository hierarchy, interfaces, capsules and archive export.",
+  "generated_files": [
+    ".kyba/imported-capsules/README.md",
+    ".kyba/repository-interface.yaml",
+    "README.md",
+    "VALIDATION.md"
+  ],
+  "source_manifest": "configs/multirepo-export.yaml",
+  "target": "gitea-fork"
+}

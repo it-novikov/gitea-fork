@@ -1,0 +1,14 @@
+{{define "export"}}
+<section class="kcp-card">
+  <h2>Archive Export Preview</h2>
+  <p>Ready: <strong>{{.ExportReady}}</strong>. Ownership digest: <code>{{.ExportDigest}}</code></p>
+  <table class="kcp-table">
+    <thead><tr><th>Target</th><th>Files</th><th>Generated</th><th>Depends on</th><th>Description</th></tr></thead>
+    <tbody>
+    {{range .ExportRows}}
+      <tr><td><code>{{.Target}}</code></td><td>{{.Files}}</td><td>{{.GeneratedFiles}}</td><td>{{range .DependsOn}}<span class="kcp-pill">{{.}}</span>{{end}}</td><td>{{.Description}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

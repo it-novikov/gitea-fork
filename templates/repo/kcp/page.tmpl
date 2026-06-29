@@ -1,0 +1,101 @@
+{{template "base/head" .}}
+<div role="main" aria-label="{{.Title}}" class="page-content repository kcp-repo-page">
+	{{template "repo/header" .}}
+	<div class="ui container">
+		{{template "base/alert" .}}
+
+		<div class="tw-mt-4 tw-mb-4">
+			<h2 class="ui header">KYBa repository interface</h2>
+			<p class="text light">{{.KCPRepo.HelpText}}</p>
+		</div>
+
+		<div class="ui secondary pointing menu">
+			{{range .KCPRepo.Nav}}
+				<a class="item{{if .Active}} active{{end}}" href="{{.Href}}">{{.Title}}</a>
+			{{end}}
+		</div>
+
+		{{if eq .KCPRepo.SubPage "overview"}}
+			<div class="ui three stackable cards">
+				<a class="card" href="{{.RepoLink}}/kcp/imports">
+					<div class="content"><div class="header">Imported files</div><div class="description">{{len .KCPRepo.ImportedFiles}} materialized files visible in this repository context.</div></div>
+				</a>
+				<a class="card" href="{{.RepoLink}}/kcp/exports">
+					<div class="content"><div class="header">Exported files</div><div class="description">{{len .KCPRepo.ExportFiles}} candidate files selected for exported capsules.</div></div>
+				</a>
+				<a class="card" href="{{.RepoLink}}/kcp/impact">
+					<div class="content"><div class="header">Impact</div><div class="description">{{len .KCPRepo.Impact}} dependent maintenance records and draft PR plans.</div></div>
+				</a>
+			</div>
+
+			<h3 class="ui dividing header">Repository-native KCP model</h3>
+			<div class="ui list">
+				<div class="item"><strong>Imports</strong> are shown as files materialized into this repository, not as links that require broad access to another repository.</div>
+				<div class="item"><strong>Exports</strong> are selected from this repository and published as bounded repository interface capsules.</div>
+				<div class="item"><strong>Impact</strong> lists dependent repositories, KYBa maintenance tasks and generated draft PR plans.</div>
+			</div>
+		{{end}}
+
+		{{if eq .KCPRepo.SubPage "imports"}}
+			<h3 class="ui dividing header">Imported files visible in this repository</h3>
+			<table class="ui celled table">
+				<thead><tr><th>Imported file</th><th>Capsule</th><th>Source repo</th><th>Mode</th><th>Description</th></tr></thead>
+				<tbody>
+				{{range .KCPRepo.ImportedFiles}}
+					<tr>
+						<td><code>{{.Path}}</code></td>
+						<td><code>{{.CapsuleID}}</code></td>
+						<td>{{.SourceRepo}}</td>
+						<td><span class="ui small label">{{.Mode}}</span></td>
+						<td>{{.Description}}</td>
+					</tr>
+				{{end}}
+				</tbody>
+			</table>
+		{{end}}
+
+		{{if eq .KCPRepo.SubPage "exports"}}
+			<h3 class="ui dividing header">Choose files exported by this repository</h3>
+			<form class="ui form" method="post" action="{{.RepoLink}}/kcp/exports">
+				{{$.CsrfTokenHtml}}
+				<table class="ui celled table">
+					<thead><tr><th class="collapsing">Export</th><th>File</th><th>Capsule</th><th>Target</th><th>Mode</th><th>Description</th></tr></thead>
+					<tbody>
+					{{range .KCPRepo.ExportFiles}}
+						<tr>
+							<td class="collapsing">
+								<div class="ui checkbox">
+									<input type="checkbox" name="export_files" value="{{.Path}}" {{if .Selected}}checked{{end}}>
+									<label></label>
+								</div>
+							</td>
+							<td><code>{{.Path}}</code></td>
+							<td><code>{{.CapsuleID}}</code></td>
+							<td>{{.TargetRepo}}</td>
+							<td><span class="ui small label">{{.Mode}}</span></td>
+							<td>{{.Description}}</td>
+						</tr>
+					{{end}}
+					</tbody>
+				</table>
+				<div class="field">
+					<button class="ui primary button" type="submit">Save export selection preview</button>
+					<span class="text light">{{.KCPRepo.SelectedCount}} files selected. Persistent storage is handled by the repository-interface service.</span>
+				</div>
+			</form>
+		{{end}}
+
+		{{if eq .KCPRepo.SubPage "impact"}}
+			<h3 class="ui dividing header">Impact and dependent maintenance</h3>
+			<table class="ui celled table">
+				<thead><tr><th>Capsule</th><th>Dependent repository</th><th>Status</th><th>KYBa task</th><th>Draft PR plan</th></tr></thead>
+				<tbody>
+				{{range .KCPRepo.Impact}}
+					<tr><td><code>{{.CapsuleID}}</code></td><td>{{.Repository}}</td><td><span class="ui small label">{{.Status}}</span></td><td>{{.Task}}</td><td>{{.DraftPR}}</td></tr>
+				{{end}}
+				</tbody>
+			</table>
+		{{end}}
+	</div>
+</div>
+{{template "base/footer" .}}

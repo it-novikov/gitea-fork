@@ -1,0 +1,187 @@
+openapi: 3.1.0
+info:
+  title: Knowledge Cell Gitea Fork Hierarchy Extension
+  version: 0.5.2
+  description: >-
+    API overlay for projects, arbitrarily nested repository groups, and repository placements.
+    The overlay changes repository organization only; repository identity and clone URLs remain
+    owned by the upstream Gitea repository record.
+paths:
+  /api/v1/kcp/projects:
+    get:
+      operationId: listKcpProjects
+      responses:
+        '200':
+          description: Visible projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+    post:
+      operationId: createKcpProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/kcp/projects/{projectId}/tree:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getKcpProjectTree
+      responses:
+        '200':
+          description: Nested groups and repository placements visible to the caller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectTree' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/kcp/projects/{projectId}/groups:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: createKcpRepositoryGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGroupRequest' }
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryGroup' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/kcp/groups/{groupId}/move:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    post:
+      operationId: moveKcpRepositoryGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MoveGroupRequest' }
+      responses:
+        '200':
+          description: Entire subtree moved atomically
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryGroup' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422':
+          description: Destination creates a cycle or violates hierarchy policy
+  /api/v1/kcp/repositories/{repositoryId}/placement:
+    parameters:
+      - name: repositoryId
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    put:
+      operationId: moveKcpRepository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MoveRepositoryRequest' }
+      responses:
+        '200':
+          description: Placement changed without changing repository identity or clone URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryPlacement' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+  responses:
+    Conflict:
+      description: Duplicate name, stale expectedVersion, or conflicting placement
+    NotFound:
+      description: Requested hierarchy object was not found or is not visible
+  schemas:
+    Project:
+      type: object
+      required: [id, ownerId, name, slug, version]
+      properties:
+        id: { type: integer, format: int64 }
+        ownerId: { type: integer, format: int64 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        slug: { type: string, pattern: '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$' }
+        version: { type: integer, format: int64, minimum: 1 }
+    RepositoryGroup:
+      type: object
+      required: [id, projectId, name, version]
+      properties:
+        id: { type: integer, format: int64 }
+        projectId: { type: integer, format: int64 }
+        parentId: { type: [integer, 'null'], format: int64 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        version: { type: integer, format: int64, minimum: 1 }
+    RepositoryPlacement:
+      type: object
+      required: [repositoryId, projectId, version]
+      properties:
+        repositoryId: { type: integer, format: int64 }
+        projectId: { type: integer, format: int64 }
+        groupId: { type: [integer, 'null'], format: int64 }
+        version: { type: integer, format: int64, minimum: 1 }
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        slug: { type: string, pattern: '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$' }
+    CreateGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        parentId: { type: [integer, 'null'], format: int64 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+    MoveGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [destinationProjectId, expectedVersion]
+      properties:
+        destinationProjectId: { type: integer, format: int64, minimum: 1 }
+        destinationParentId: { type: [integer, 'null'], format: int64 }
+        expectedVersion: { type: integer, format: int64, minimum: 1 }
+    MoveRepositoryRequest:
+      type: object
+      additionalProperties: false
+      required: [destinationProjectId, expectedVersion]
+      properties:
+        destinationProjectId: { type: integer, format: int64, minimum: 1 }
+        destinationGroupId: { type: [integer, 'null'], format: int64 }
+        expectedVersion: { type: integer, format: int64, minimum: 1 }
+    ProjectTree:
+      type: object
+      required: [project, groups, placements]
+      properties:
+        project: { $ref: '#/components/schemas/Project' }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/RepositoryGroup' }
+        placements:
+          type: array
+          items: { $ref: '#/components/schemas/RepositoryPlacement' }

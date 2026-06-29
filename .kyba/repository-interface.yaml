@@ -1,0 +1,11 @@
+id: kyba.repo.gitea-fork.interface.v1
+kind: repository-interface
+owner_repo: gitea-fork
+version: 0.1.0
+visibility: imported-repos-only
+description: "Gitea fork, repository hierarchy, interfaces, capsules and archive export."
+dependencies:
+  - kyba
+exports:
+  local_files: true
+  materialized_capsules: true

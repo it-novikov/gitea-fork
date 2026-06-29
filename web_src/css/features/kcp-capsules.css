@@ -1,0 +1,11 @@
+.kcp-page { display: flex; min-height: 100vh; }
+.kcp-sidebar { width: 240px; padding: 24px 18px; }
+.kcp-brand { font-weight: 700; margin-bottom: 24px; }
+.kcp-nav { display: block; padding: 10px 12px; border-radius: 8px; text-decoration: none; }
+.kcp-nav.is-active { font-weight: 700; }
+.kcp-main { flex: 1; padding: 32px; }
+.kcp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.kcp-card { border: 1px solid var(--color-secondary); border-radius: 12px; padding: 18px; }
+.kcp-table { width: 100%; border-collapse: collapse; }
+.kcp-table th, .kcp-table td { padding: 10px 12px; border-bottom: 1px solid var(--color-secondary); text-align: left; vertical-align: top; }
+.kcp-pill { display: inline-block; border: 1px solid var(--color-secondary); border-radius: 999px; padding: 2px 8px; margin: 0 4px 4px 0; }

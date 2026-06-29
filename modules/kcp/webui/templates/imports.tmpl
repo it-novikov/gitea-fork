@@ -1,0 +1,13 @@
+{{define "imports"}}
+<section class="kcp-card">
+  <h2>Materialized Imports</h2>
+  <table class="kcp-table">
+    <thead><tr><th>Capsule</th><th>Consumer</th><th>Version range</th><th>Mode</th><th>Freshness</th><th>Revision</th></tr></thead>
+    <tbody>
+    {{range .Imports}}
+      <tr><td><code>{{.CapsuleID}}</code></td><td>{{.ConsumerRepo}}</td><td>{{.RequiredVersionRange}}</td><td>{{.Mode}}</td><td>{{.Freshness}}</td><td>{{.MaterializedRevision}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

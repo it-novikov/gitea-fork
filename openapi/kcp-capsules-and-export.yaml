@@ -1,0 +1,367 @@
+openapi: 3.0.3
+info:
+  title: KYBa Gitea Capsule and Export API
+  version: 0.2.0
+  description: >-
+    Draft API surface for the Gitea fork overlay. Repository interfaces,
+    capsules and multirepo archive export are first-class platform resources.
+servers:
+  - url: /api/v1
+paths:
+  /kcp/capsules:
+    get:
+      summary: List exported capsules visible to the caller.
+      parameters:
+        - name: owner_repo
+          in: query
+          schema: { type: string }
+        - name: kind
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Capsule list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CapsuleManifest'
+    post:
+      summary: Publish or update a repository-owned capsule export.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapsuleManifest'
+      responses:
+        '202':
+          description: Capsule accepted for validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapsuleStatus'
+  /kcp/capsules/{capsule_id}:
+    get:
+      summary: Read a capsule manifest and current compatibility state.
+      parameters:
+        - $ref: '#/components/parameters/CapsuleID'
+      responses:
+        '200':
+          description: Capsule detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapsuleDetail'
+  /kcp/capsules/{capsule_id}/imports:
+    get:
+      summary: List dependent repository imports for a capsule.
+      parameters:
+        - $ref: '#/components/parameters/CapsuleID'
+      responses:
+        '200':
+          description: Import list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CapsuleImport'
+    post:
+      summary: Import a bounded capsule snapshot into a dependent repository.
+      parameters:
+        - $ref: '#/components/parameters/CapsuleID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapsuleImportRequest'
+      responses:
+        '202':
+          description: Import accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapsuleImport'
+  /kcp/capsules/{capsule_id}/materialize:
+    post:
+      summary: Materialize an imported capsule snapshot for a consumer repository.
+      parameters:
+        - $ref: '#/components/parameters/CapsuleID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterializeRequest'
+      responses:
+        '200':
+          description: Materialized snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterializedSnapshot'
+  /kcp/capsules/{capsule_id}/impact:
+    post:
+      summary: Calculate dependent repositories, KYBa tasks and generated draft PRs for a capsule change.
+      parameters:
+        - $ref: '#/components/parameters/CapsuleID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImpactRequest'
+      responses:
+        '200':
+          description: Impact report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactReport'
+        '409':
+          description: Breaking change; owner approval required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactReport'
+  /kcp/export-plan:
+    post:
+      summary: Validate a monorepo export manifest and return file ownership plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportPlanRequest'
+      responses:
+        '200':
+          description: Export plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportPlan'
+        '409':
+          description: Ambiguous or unassigned ownership blocks the export.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportPlan'
+  /kcp/export-archives:
+    post:
+      summary: Build target repository archives from a validated export plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportArchivesRequest'
+      responses:
+        '202':
+          description: Export run started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportRun'
+  /kcp/export-runs/{run_id}:
+    get:
+      summary: Read export run status and report.
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Export run detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportRun'
+components:
+  parameters:
+    CapsuleID:
+      name: capsule_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^kyba\.[a-z0-9][a-z0-9.-]*\.v[0-9]+$'
+  schemas:
+    CapsuleManifest:
+      type: object
+      required: [id, kind, owner_repo, version, visibility, exports]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [product, screen, api, event, ci, context, repository-interface]
+        owner_repo: { type: string }
+        version: { type: string }
+        visibility:
+          type: string
+          enum: [private, imported-repos-only, public]
+        exports:
+          type: array
+          items: { type: string }
+        consumers:
+          type: array
+          items: { type: string }
+        impact_policy:
+          type: string
+          enum: [create-generated-draft-pr, create-maintenance-task, block-until-owner-approval]
+        freshness:
+          type: object
+          properties:
+            max_age_days: { type: integer, minimum: 0 }
+    CapsuleStatus:
+      type: object
+      properties:
+        capsule_id: { type: string }
+        status: { type: string }
+    CapsuleDetail:
+      type: object
+      properties:
+        manifest:
+          $ref: '#/components/schemas/CapsuleManifest'
+        imports:
+          type: array
+          items:
+            $ref: '#/components/schemas/CapsuleImport'
+    CapsuleImportRequest:
+      type: object
+      required: [consumer_repo, required_version, mode]
+      properties:
+        consumer_repo: { type: string }
+        required_version: { type: string }
+        mode:
+          type: string
+          enum: [required, validation-only, optional]
+    CapsuleImport:
+      allOf:
+        - $ref: '#/components/schemas/CapsuleImportRequest'
+        - type: object
+          properties:
+            capsule_id: { type: string }
+            materialized_revision: { type: string }
+            materialized_at_unix: { type: integer, format: int64 }
+            freshness_status:
+              type: string
+              enum: [unknown, fresh, stale]
+    MaterializeRequest:
+      type: object
+      required: [consumer_repo, revision]
+      properties:
+        consumer_repo: { type: string }
+        revision: { type: string }
+    MaterializedSnapshot:
+      type: object
+      properties:
+        capsule_id: { type: string }
+        consumer_repo: { type: string }
+        version: { type: string }
+        revision: { type: string }
+        files:
+          type: array
+          items: { type: string }
+        context_path: { type: string }
+        digest: { type: string }
+    ImpactRequest:
+      type: object
+      required: [manifest, compatible]
+      properties:
+        manifest:
+          $ref: '#/components/schemas/CapsuleManifest'
+        compatible: { type: boolean }
+    ImpactReport:
+      type: object
+      properties:
+        capsule_id: { type: string }
+        compatible: { type: boolean }
+        breaking: { type: boolean }
+        affected_repos:
+          type: array
+          items: { type: string }
+        required_actions:
+          type: object
+          additionalProperties: { type: string }
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              repository: { type: string }
+              policy: { type: string }
+              reason: { type: string }
+        draft_prs:
+          type: array
+          items:
+            type: object
+            properties:
+              repository: { type: string }
+              title: { type: string }
+              branch: { type: string }
+    ExportPlanRequest:
+      type: object
+      required: [manifest, files]
+      properties:
+        manifest: { type: object }
+        files:
+          type: array
+          items: { type: string }
+    ExportPlan:
+      type: object
+      properties:
+        ready: { type: boolean }
+        import_order:
+          type: array
+          items: { type: string }
+        ownership_digest: { type: string }
+        assignments:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              target: { type: string }
+        ambiguous_files:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        unassigned_files:
+          type: array
+          items: { type: string }
+    ExportArchivesRequest:
+      type: object
+      required: [plan_id]
+      properties:
+        plan_id: { type: string }
+        targets:
+          type: array
+          items: { type: string }
+    ExportRun:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        ownership_digest: { type: string }
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              target: { type: string }
+              archive_name: { type: string }
+              file_count: { type: integer }
+              generated_files: { type: integer }
+              digest: { type: string }

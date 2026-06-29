@@ -1,0 +1,20 @@
+{{define "dashboard"}}
+<section class="kcp-grid">
+  <article class="kcp-card">
+    <h2>Capsules</h2>
+    <p>{{len .Capsules}} exported interface/context capsules are visible to this view.</p>
+  </article>
+  <article class="kcp-card">
+    <h2>Imports</h2>
+    <p>{{len .Imports}} materialized capsule imports are tracked for dependent repositories.</p>
+  </article>
+  <article class="kcp-card">
+    <h2>Impact Queue</h2>
+    <p>{{len .ImpactRows}} maintenance tasks are planned from capsule changes.</p>
+  </article>
+  <article class="kcp-card">
+    <h2>Archive Export</h2>
+    <p>Export ready: {{.ExportReady}}. Digest: <code>{{.ExportDigest}}</code></p>
+  </article>
+</section>
+{{end}}

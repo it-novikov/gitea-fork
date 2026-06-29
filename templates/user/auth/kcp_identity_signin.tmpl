@@ -1,0 +1,45 @@
+{{template "base/head" .}}
+<div role="main" aria-label="{{.Title}}" class="page-content user signin">
+	<div class="ui middle very relaxed page grid">
+		<div class="column tw-flex tw-flex-col tw-gap-4 tw-max-w-2xl tw-m-auto">
+			<div class="ui container fluid">
+				{{template "base/alert" .}}
+				<h4 class="ui top attached header center">
+					KYBa Identity sign in
+				</h4>
+				<div class="ui attached segment">
+					<div class="ui small message">
+						<div class="header">Per-customer identity</div>
+						<p>Gitea sign-in is delegated to KYBa Identity Service. Enter a registered phone number and verify the one-time challenge.</p>
+					</div>
+					<form class="ui form" action="{{.KCPIdentitySignInLink}}" method="post">
+						<div class="required field {{if .Err_Phone}}error{{end}}">
+							<label for="phone">Registered phone</label>
+							<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• 44" autocomplete="tel" inputmode="tel" required autofocus>
+							<div class="help">Use the phone registered in KYBa Identity Service.</div>
+						</div>
+						<div class="field">
+							<label>Delivery method</label>
+							<div class="ui two item menu">
+								<label class="item"><input type="radio" name="delivery" value="sms" checked> SMS</label>
+								<label class="item"><input type="radio" name="delivery" value="voice"> Voice</label>
+							</div>
+						</div>
+						<input type="hidden" name="redirect_to" value="{{.RedirectTo}}">
+						<div class="field">
+							<button class="ui primary button tw-w-full">Send code</button>
+						</div>
+					</form>
+				</div>
+				<div class="ui attached segment header top tw-max-w-2xl tw-m-auto tw-flex tw-flex-col tw-items-center">
+					<div class="field">
+						<a href="{{AppSubUrl}}/user/sign_up">Create account</a>
+						<span class="tw-mx-2">·</span>
+						<a href="{{AppSubUrl}}/user/forgot_password">Account recovery</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{{template "base/footer" .}}

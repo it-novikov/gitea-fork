@@ -1,0 +1,37 @@
+{{template "base/head" .}}
+<div role="main" aria-label="{{.Title}}" class="page-content user signin">
+	<div class="ui middle very relaxed page grid">
+		<div class="column tw-flex tw-flex-col tw-gap-4 tw-max-w-2xl tw-m-auto">
+			<div class="ui container fluid">
+				{{template "base/alert" .}}
+				<h4 class="ui top attached header center">Create KYBa account</h4>
+				<div class="ui attached segment">
+					<div class="ui small warning message">
+						Registration does not grant repository or capsule access automatically. A KYBa administrator must assign roles and grants after account creation.
+					</div>
+					<form class="ui form" action="{{.KCPIdentitySignUpLink}}" method="post">
+						<div class="required field {{if .Err_DisplayName}}error{{end}}">
+							<label for="display_name">Display name</label>
+							<input id="display_name" name="display_name" value="{{.DisplayName}}" placeholder="e.g. d.ivanova" required autofocus>
+						</div>
+						<div class="required field {{if .Err_Phone}}error{{end}}">
+							<label for="phone">Phone</label>
+							<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• ••" autocomplete="tel" inputmode="tel" required>
+						</div>
+						<div class="required field {{if .Err_InvitationCode}}error{{end}}">
+							<label for="invitation_code">Workspace invitation code</label>
+							<input id="invitation_code" name="invitation_code" value="{{.InvitationCode}}" placeholder="Paste the code from your invitation" required>
+						</div>
+						<div class="field">
+							<button class="ui primary button tw-w-full">Create account</button>
+						</div>
+					</form>
+				</div>
+				<div class="ui attached segment header top tw-max-w-2xl tw-m-auto tw-flex tw-flex-col tw-items-center">
+					Already registered? <a href="{{AppSubUrl}}/user/login">Sign in</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{{template "base/footer" .}}

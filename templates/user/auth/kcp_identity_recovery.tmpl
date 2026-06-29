@@ -1,0 +1,35 @@
+{{template "base/head" .}}
+<div role="main" aria-label="{{.Title}}" class="page-content user forgot password">
+	<div class="ui middle very relaxed page grid">
+		<div class="column tw-flex tw-flex-col tw-gap-4 tw-max-w-2xl tw-m-auto">
+			<div class="ui container fluid">
+				{{template "base/alert" .}}
+				<h4 class="ui top attached header center">KYBa account recovery</h4>
+				<div class="ui attached segment">
+					{{if .KCPIdentityRecoverySent}}
+						<div class="ui positive message">
+							Recovery challenge sent to <code>{{.MaskedTarget}}</code>. Follow the challenge instructions from KYBa Identity Service.
+						</div>
+					{{else}}
+						<div class="ui negative message">
+							Recovery invalidates active sessions for this identity. Sensitive actions remain blocked until re-verification succeeds.
+						</div>
+						<form class="ui form ignore-dirty" action="{{.KCPIdentityRecoveryLink}}" method="post">
+							<div class="required field {{if .Err_Phone}}error{{end}}">
+								<label for="phone">Registered phone</label>
+								<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• 44" autocomplete="tel" inputmode="tel" required autofocus>
+							</div>
+							<div class="field">
+								<button class="ui primary button tw-w-full">Begin recovery challenge</button>
+							</div>
+						</form>
+					{{end}}
+				</div>
+				<div class="ui attached segment header top tw-max-w-2xl tw-m-auto tw-flex tw-flex-col tw-items-center">
+					<a href="{{AppSubUrl}}/user/login">Back to sign in</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{{template "base/footer" .}}

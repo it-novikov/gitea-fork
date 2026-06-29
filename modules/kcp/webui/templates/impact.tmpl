@@ -1,0 +1,13 @@
+{{define "impact"}}
+<section class="kcp-card">
+  <h2>Impact Queue</h2>
+  <table class="kcp-table">
+    <thead><tr><th>Capsule</th><th>Repository</th><th>Policy</th><th>Blocked</th><th>Draft PR</th><th>Reason</th></tr></thead>
+    <tbody>
+    {{range .ImpactRows}}
+      <tr><td><code>{{.CapsuleID}}</code></td><td>{{.Repo}}</td><td>{{.Policy}}</td><td>{{.Blocked}}</td><td>{{.DraftPR}}</td><td>{{.Reason}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

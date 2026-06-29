@@ -1,0 +1,17 @@
+schema_version: 1
+target: gitea-fork
+purpose: Gitea fork repository hierarchy, repository interfaces, context capsules and repository-native export UI/API.
+owned_paths:
+  - modules/kcp/**
+  - services/kcp/**
+  - routers/web/repo/kcp.go
+  - routers/api/v1/kcp/**
+  - migrations/**
+  - openapi/**
+  - templates/repo/kcp/**
+  - web_src/js/features/kcp-*.js
+  - web_src/css/features/kcp-*.css
+forbidden_targets:
+  - kyba-context-capsules
+  - kyba-contracts
+  - kyba-infra

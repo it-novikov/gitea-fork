@@ -1,0 +1,36 @@
+{{template "base/head" .}}
+<div role="main" aria-label="{{.Title}}" class="page-content user signin">
+	<div class="ui middle very relaxed page grid">
+		<div class="column tw-flex tw-flex-col tw-gap-4 tw-max-w-2xl tw-m-auto">
+			<div class="ui container fluid">
+				{{template "base/alert" .}}
+				<h4 class="ui top attached header center">KYBa Identity challenge</h4>
+				<div class="ui attached segment">
+					<div class="ui small message">
+						<div class="header">Enter the 6-digit code</div>
+						<p>Code sent to <code>{{.MaskedTarget}}</code>. Codes are single-use and expire quickly.</p>
+					</div>
+					<form class="ui form" action="{{.KCPIdentityChallengeLink}}" method="post">
+						<div class="required field {{if .Err_Code}}error{{end}}">
+							<label for="code">Challenge code</label>
+							<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required autofocus>
+						</div>
+						<div class="inline field">
+							<div class="ui checkbox">
+								<label>Remember this device</label>
+								<input name="remember" type="checkbox">
+							</div>
+						</div>
+						<div class="field">
+							<button class="ui primary button tw-w-full">Verify</button>
+						</div>
+					</form>
+				</div>
+				<div class="ui attached segment header top tw-max-w-2xl tw-m-auto tw-flex tw-flex-col tw-items-center">
+					<a href="{{AppSubUrl}}/user/login">Restart challenge</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{{template "base/footer" .}}

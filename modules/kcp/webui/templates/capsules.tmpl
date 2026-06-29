@@ -1,0 +1,13 @@
+{{define "capsules"}}
+<section class="kcp-card">
+  <h2>Exported Capsules</h2>
+  <table class="kcp-table">
+    <thead><tr><th>ID</th><th>Kind</th><th>Owner</th><th>Version</th><th>Visibility</th><th>Consumers</th></tr></thead>
+    <tbody>
+    {{range .Capsules}}
+      <tr><td><code>{{.ID}}</code></td><td>{{.Kind}}</td><td>{{.OwnerRepo}}</td><td>{{.Version}}</td><td>{{.Visibility}}</td><td>{{range .Consumers}}<span class="kcp-pill">{{.}}</span>{{end}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
