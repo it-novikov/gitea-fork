@@ -65,7 +65,8 @@
 					border: 1px solid var(--color-secondary);
 					border-radius: 0.5rem;
 					background: var(--color-box-body);
-					overflow: hidden;
+					max-height: 72vh;
+					overflow: auto;
 					margin-bottom: 1rem;
 				}
 				.kcp-tree-row {
@@ -155,6 +156,24 @@
 					text-align: center;
 					color: var(--color-text-light);
 				}
+				.kcp-tree-toolbar {
+					display: flex;
+					flex-wrap: wrap;
+					align-items: center;
+					gap: 0.75rem;
+					margin-bottom: 0.75rem;
+				}
+				.kcp-tree-filter {
+					min-width: min(28rem, 100%);
+					flex: 1 1 22rem;
+				}
+				.kcp-tree-filter input {
+					width: 100%;
+				}
+				.kcp-tree-summary {
+					color: var(--color-text-light);
+					font-size: 0.9rem;
+				}
 				@media (max-width: 767px) {
 					.kcp-tree-row {
 						grid-template-columns: minmax(0, 1fr);
@@ -168,9 +187,17 @@
 			</style>
 			<form class="ui form" method="post" action="{{.RepoLink}}/kcp/exports" data-kcp-export-form>
 				{{$.CsrfTokenHtml}}
-				<div class="ui small basic buttons tw-mb-3">
-					<button class="ui button" type="button" data-kcp-select-all> Select all files</button>
-					<button class="ui button" type="button" data-kcp-clear-selection>Clear selection</button>
+				<div class="kcp-tree-toolbar">
+					<div class="ui input kcp-tree-filter">
+						<input type="search" placeholder="Filter by path, file or folder name" autocomplete="off" data-kcp-filter>
+					</div>
+					<div class="ui small basic buttons">
+						<button class="ui button" type="button" data-kcp-expand-all>Expand all</button>
+						<button class="ui button" type="button" data-kcp-collapse-all>Collapse folders</button>
+						<button class="ui button" type="button" data-kcp-select-all>Select all files</button>
+						<button class="ui button" type="button" data-kcp-clear-selection>Clear selection</button>
+					</div>
+					<span class="kcp-tree-summary" data-kcp-filter-summary></span>
 				</div>
 				<div class="kcp-export-tree" role="tree" aria-label="Repository export file tree">
 					{{range .KCPRepo.ExportFiles}}
@@ -185,11 +212,12 @@
 									<input
 										class="kcp-tree-checkbox"
 										type="checkbox"
-										name="{{if .IsDir}}export_dirs{{else}}export_files{{end}}"
 										value="{{.Path}}"
+										data-kcp-form-name="{{if .IsDir}}export_dirs{{else}}export_files{{end}}"
 										data-kcp-export-checkbox
 										data-kcp-kind="{{if .IsDir}}dir{{else}}file{{end}}"
 										data-kcp-path="{{.Path}}"
+										data-kcp-file-count="{{.FileCount}}"
 										data-kcp-partial="{{if .Partial}}true{{else}}false{{end}}"
 										{{if .Selected}}checked{{end}}>
 									<span class="kcp-tree-kind">{{if .IsDir}}folder{{else}}file{{end}}</span>
@@ -236,57 +264,145 @@
 <script type="module">
 	const form = document.querySelector('[data-kcp-export-form]');
 	if (form) {
-		const boxes = Array.from(form.querySelectorAll('[data-kcp-export-checkbox]'));
-		const rows = Array.from(form.querySelectorAll('[data-kcp-tree-row]'));
-		const toggles = Array.from(form.querySelectorAll('[data-kcp-toggle]'));
+		const filter = form.querySelector('[data-kcp-filter]');
+		const filterSummary = form.querySelector('[data-kcp-filter-summary]');
 		const count = form.querySelector('[data-kcp-selection-count]');
-		const collapsed = new Set();
-		const files = () => boxes.filter((box) => box.dataset.kcpKind === 'file');
-		const dirs = () => boxes.filter((box) => box.dataset.kcpKind === 'dir');
 		const parentPath = (path) => {
 			const index = path.lastIndexOf('/');
 			return index > 0 ? path.slice(0, index) : '';
 		};
 		const under = (path, dir) => path !== dir && path.startsWith(`${dir}/`);
-		const descendantFiles = (dir) => files().filter((box) => under(box.dataset.kcpPath, dir));
+
+		const records = Array.from(form.querySelectorAll('[data-kcp-tree-row]')).map((row) => {
+			const box = row.querySelector('[data-kcp-export-checkbox]');
+			return {
+				row,
+				box,
+				toggle: row.querySelector('[data-kcp-toggle]'),
+				path: row.dataset.kcpPath,
+				pathLower: row.dataset.kcpPath.toLowerCase(),
+				kind: row.dataset.kcpKind,
+				fileCount: Number(box?.dataset.kcpFileCount || 0),
+			};
+		});
+		const fileRecords = records.filter((record) => record.kind === 'file');
+		const dirRecords = records.filter((record) => record.kind === 'dir');
+		const topLevelDirs = dirRecords.filter((record) => !record.path.includes('/'));
+		const rootFiles = fileRecords.filter((record) => !record.path.includes('/'));
+		const selectedDirs = new Set(dirRecords.filter((record) => record.box.checked).map((record) => record.path));
+		const selectedFiles = new Set();
+		const collapsed = new Set(topLevelDirs.map((record) => record.path));
+
+		const nearestSelectedDir = (path) => {
+			for (let parent = parentPath(path); parent; parent = parentPath(parent)) {
+				if (selectedDirs.has(parent)) return parent;
+			}
+			return '';
+		};
+		for (const record of fileRecords) {
+			if (record.box.checked && !nearestSelectedDir(record.path)) {
+				selectedFiles.add(record.path);
+			}
+		}
+
+		const appendHiddenInput = (name, value) => {
+			const input = document.createElement('input');
+			input.type = 'hidden';
+			input.name = name;
+			input.value = value;
+			input.className = 'kcp-selection-hidden';
+			form.append(input);
+		};
+		const removeDescendantSelections = (path) => {
+			for (const dir of Array.from(selectedDirs)) {
+				if (under(dir, path)) selectedDirs.delete(dir);
+			}
+			for (const file of Array.from(selectedFiles)) {
+				if (under(file, path)) selectedFiles.delete(file);
+			}
+		};
+		const materializeSelectedAncestorExcept = (selectedAncestor, excludedPath) => {
+			selectedDirs.delete(selectedAncestor);
+			for (const file of Array.from(selectedFiles)) {
+				if (file === excludedPath || under(file, excludedPath)) {
+					selectedFiles.delete(file);
+				}
+			}
+			for (const file of fileRecords) {
+				if (!under(file.path, selectedAncestor)) continue;
+				if (file.path === excludedPath || under(file.path, excludedPath)) continue;
+				selectedFiles.add(file.path);
+			}
+		};
+		const isFileSelected = (path) => selectedFiles.has(path) || Boolean(nearestSelectedDir(path));
 		const isHiddenByCollapsedParent = (path) => {
 			for (let parent = parentPath(path); parent; parent = parentPath(parent)) {
 				if (collapsed.has(parent)) return true;
 			}
 			return false;
 		};
+		const matchingAncestorPaths = (path, visiblePaths) => {
+			for (let parent = parentPath(path); parent; parent = parentPath(parent)) {
+				visiblePaths.add(parent);
+			}
+		};
 		const updateTreeVisibility = () => {
-			for (const row of rows) {
-				row.dataset.kcpHidden = isHiddenByCollapsedParent(row.dataset.kcpPath) ? 'true' : 'false';
+			const query = filter?.value.trim().toLowerCase() || '';
+			const visiblePaths = new Set();
+			let matches = 0;
+			if (query) {
+				for (const record of records) {
+					if (!record.pathLower.includes(query)) continue;
+					visiblePaths.add(record.path);
+					matchingAncestorPaths(record.path, visiblePaths);
+					matches++;
+				}
 			}
-			for (const toggle of toggles) {
-				const path = toggle.dataset.kcpPath;
+			for (const record of records) {
+				const visible = query ? visiblePaths.has(record.path) : !isHiddenByCollapsedParent(record.path);
+				record.row.dataset.kcpHidden = visible ? 'false' : 'true';
+			}
+			for (const record of dirRecords) {
+				if (!record.toggle) continue;
+				const path = record.path;
 				const isCollapsed = collapsed.has(path);
-				toggle.textContent = isCollapsed ? '+' : '-';
-				toggle.setAttribute('aria-expanded', String(!isCollapsed));
-				toggle.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${path}`);
+				record.toggle.textContent = isCollapsed ? '+' : '-';
+				record.toggle.setAttribute('aria-expanded', String(!isCollapsed));
+				record.toggle.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${path}`);
+			}
+			if (filterSummary) {
+				if (query) {
+					filterSummary.textContent = `${matches} ${matches === 1 ? 'match' : 'matches'}`;
+				} else {
+					filterSummary.textContent = `${fileRecords.length} files, ${dirRecords.length} folders`;
+				}
 			}
 		};
-		const updateFolders = () => {
-			for (const box of dirs()) {
-				const children = descendantFiles(box.dataset.kcpPath);
-				const selected = children.filter((child) => child.checked).length;
-				box.checked = children.length > 0 && selected === children.length;
-				box.indeterminate = selected > 0 && selected < children.length;
+		const updateSelectionState = () => {
+			let selectedCount = 0;
+			const selectedCountByDir = new Map();
+			for (const record of fileRecords) {
+				const selected = isFileSelected(record.path);
+				record.box.checked = selected;
+				record.box.indeterminate = false;
+				if (!selected) continue;
+				selectedCount++;
+				for (let parent = parentPath(record.path); parent; parent = parentPath(parent)) {
+					selectedCountByDir.set(parent, (selectedCountByDir.get(parent) || 0) + 1);
+				}
+			}
+			for (const record of dirRecords) {
+				const selected = selectedCountByDir.get(record.path) || 0;
+				record.box.checked = record.fileCount > 0 && selected === record.fileCount;
+				record.box.indeterminate = selected > 0 && selected < record.fileCount;
+			}
+			if (count) {
+				count.textContent = `${selectedCount} ${selectedCount === 1 ? 'file' : 'files'} selected for export preview.`;
 			}
 		};
-		const updateCount = () => {
-			if (!count) return;
-			const selected = files().filter((box) => box.checked).length;
-			count.textContent = `${selected} ${selected === 1 ? 'file' : 'files'} selected for export preview.`;
-		};
-		const update = () => {
-			updateFolders();
-			updateCount();
-		};
-		for (const toggle of toggles) {
-			toggle.addEventListener('click', () => {
-				const path = toggle.dataset.kcpPath;
+		for (const record of dirRecords) {
+			record.toggle?.addEventListener('click', () => {
+				const path = record.path;
 				if (collapsed.has(path)) {
 					collapsed.delete(path);
 				} else {
@@ -295,35 +411,74 @@
 				updateTreeVisibility();
 			});
 		}
-		for (const box of boxes) {
-			box.indeterminate = box.dataset.kcpPartial === 'true';
-			box.addEventListener('change', () => {
-				if (box.dataset.kcpKind === 'dir') {
-					for (const child of boxes) {
-						if (under(child.dataset.kcpPath, box.dataset.kcpPath)) {
-							child.checked = box.checked;
-							child.indeterminate = false;
+		for (const record of records) {
+			record.box.addEventListener('change', () => {
+				const path = record.path;
+				const selectedAncestor = nearestSelectedDir(path);
+				if (record.kind === 'dir') {
+					if (record.box.checked) {
+						if (selectedAncestor) {
+							record.box.checked = true;
+						} else {
+							selectedDirs.add(path);
+							removeDescendantSelections(path);
 						}
+					} else if (selectedDirs.has(path)) {
+						selectedDirs.delete(path);
+						removeDescendantSelections(path);
+					} else if (selectedAncestor) {
+						materializeSelectedAncestorExcept(selectedAncestor, path);
 					}
+				} else if (record.box.checked) {
+					selectedFiles.add(path);
+				} else if (selectedAncestor) {
+					materializeSelectedAncestorExcept(selectedAncestor, path);
+				} else {
+					selectedFiles.delete(path);
 				}
-				update();
+				updateSelectionState();
 			});
 		}
 		form.querySelector('[data-kcp-select-all]')?.addEventListener('click', () => {
-			for (const box of boxes) {
-				box.checked = true;
-				box.indeterminate = false;
+			selectedDirs.clear();
+			selectedFiles.clear();
+			for (const record of topLevelDirs) {
+				selectedDirs.add(record.path);
 			}
-			update();
+			for (const record of rootFiles) {
+				selectedFiles.add(record.path);
+			}
+			updateSelectionState();
 		});
 		form.querySelector('[data-kcp-clear-selection]')?.addEventListener('click', () => {
-			for (const box of boxes) {
-				box.checked = false;
-				box.indeterminate = false;
-			}
-			update();
+			selectedDirs.clear();
+			selectedFiles.clear();
+			updateSelectionState();
 		});
-		update();
+		form.querySelector('[data-kcp-expand-all]')?.addEventListener('click', () => {
+			collapsed.clear();
+			updateTreeVisibility();
+		});
+		form.querySelector('[data-kcp-collapse-all]')?.addEventListener('click', () => {
+			collapsed.clear();
+			for (const record of topLevelDirs) {
+				collapsed.add(record.path);
+			}
+			updateTreeVisibility();
+		});
+		filter?.addEventListener('input', updateTreeVisibility);
+		form.addEventListener('submit', () => {
+			for (const input of form.querySelectorAll('.kcp-selection-hidden')) {
+				input.remove();
+			}
+			for (const dir of Array.from(selectedDirs).sort()) {
+				appendHiddenInput('export_dirs', dir);
+			}
+			for (const file of Array.from(selectedFiles).sort()) {
+				appendHiddenInput('export_files', file);
+			}
+		});
+		updateSelectionState();
 		updateTreeVisibility();
 	}
 </script>
