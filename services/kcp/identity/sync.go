@@ -82,9 +82,14 @@ func syncShadowUser(ctx context.Context, u *user_model.User, p kcpidentity.Princ
 }
 
 func shadowUserName(p kcpidentity.Principal) (string, error) {
-	candidate := firstNonEmpty(p.Username, p.Email, p.Phone, p.Subject)
+	candidate := firstNonEmpty(p.Username, p.Email, p.Phone)
+	identitySeed := firstNonEmpty(p.Subject, p.Phone, p.Email, p.Username)
 	if candidate == "" {
-		return "", fmt.Errorf("identity principal does not contain username, email, phone or subject")
+		if identitySeed == "" {
+			return "", fmt.Errorf("identity principal does not contain username, email, phone or subject")
+		}
+		digest := sha256.Sum256([]byte(identitySeed))
+		return "identity-" + hex.EncodeToString(digest[:])[:12], nil
 	}
 	name, err := user_model.NormalizeUserName(candidate)
 	if err != nil {
@@ -92,7 +97,7 @@ func shadowUserName(p kcpidentity.Principal) (string, error) {
 	}
 	name = strings.Trim(name, "-")
 	if name == "" || len(name) < 3 {
-		digest := sha256.Sum256([]byte(firstNonEmpty(p.Subject, p.Phone, p.Email, p.Username)))
+		digest := sha256.Sum256([]byte(identitySeed))
 		name = "identity-" + hex.EncodeToString(digest[:])[:12]
 	}
 	return name, nil
