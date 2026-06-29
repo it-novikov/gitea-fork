@@ -434,6 +434,9 @@ func repoKCPCapsuleIDFromImportedPath(path string) string {
 		return ""
 	}
 	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) < 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return ""
+	}
 	return parts[0]
 }
 

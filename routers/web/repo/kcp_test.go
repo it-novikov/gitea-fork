@@ -51,6 +51,7 @@ func TestRepoKCPExportRowsUseRepositoryTreeAndFolderSelection(t *testing.T) {
 func TestRepoKCPImportedRowsComeFromMaterializedCapsules(t *testing.T) {
 	entries := []repoKCPTreeEntry{
 		{Path: "README.md"},
+		{Path: ".kyba/imported-capsules/README.md"},
 		{Path: ".kyba/imported-capsules/kyba.product.governance.v1/context.md"},
 		{Path: ".kyba/imported-capsules/kyba.product.governance.v1/repository-bridge.md"},
 	}
@@ -78,6 +79,13 @@ func TestRepoKCPImpactRowsAreNotHardcoded(t *testing.T) {
 	}, repoKCPSelection{})
 	if len(model.Impact) != 0 {
 		t.Fatalf("plain repository should not render demo impact rows: %#v", model.Impact)
+	}
+
+	model = buildRepoKCPPageData("gitea-fork", "/79028418089/gitea-fork", "impact", []repoKCPTreeEntry{
+		{Path: ".kyba/imported-capsules/README.md"},
+	}, repoKCPSelection{})
+	if len(model.Impact) != 0 {
+		t.Fatalf("imported-capsules README should not render impact rows: %#v", model.Impact)
 	}
 
 	model = buildRepoKCPPageData("gitea-fork", "/79028418089/gitea-fork", "impact", []repoKCPTreeEntry{
