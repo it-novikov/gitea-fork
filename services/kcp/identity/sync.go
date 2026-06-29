@@ -72,6 +72,9 @@ func syncShadowUser(ctx context.Context, u *user_model.User, p kcpidentity.Princ
 	if p.DisplayName != "" && p.DisplayName != u.FullName {
 		opts.FullName = optional.Some(p.DisplayName)
 	}
+	if hasElevatedIdentityRole(p.Roles) {
+		opts.IsAdmin = user_service.UpdateOptionFieldFromValue(true)
+	}
 	if err := user_service.UpdateUser(ctx, u, opts); err != nil {
 		return nil, err
 	}
@@ -111,4 +114,14 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func hasElevatedIdentityRole(roles []string) bool {
+	for _, role := range roles {
+		normalized := strings.TrimSpace(strings.ToLower(role))
+		if normalized == "super-admin" || normalized == "security-admin" {
+			return true
+		}
+	}
+	return false
 }
