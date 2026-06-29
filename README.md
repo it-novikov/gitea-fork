@@ -1,8 +1,7 @@
 # Gitea KYBa Fork
 
-This repository is a full Gitea source tree with KYBa KCP fork additions.
+This repository is a full Gitea source tree with KYBa fork additions.
 
-<details>
 <summary><strong>KYBa KCP fork additions</strong></summary>
 
 KYBa KCP extends Gitea with a platform layer for repository interfaces and context capsules.
@@ -21,5 +20,3 @@ Added capabilities:
 This fork keeps upstream Gitea behavior and embeds KYBa repository-interface workflows into the normal repository UI instead of forcing users into a separate app.
 
 See `docs/kcp/README.md`, `docs/kcp/IDENTITY_SERVICE_AUTH.md` and `UPSTREAM_POLICY.md`.
-
-</details>
