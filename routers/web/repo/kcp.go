@@ -160,10 +160,21 @@ func repoKCPSelectionFromForm(ctx *context.Context) repoKCPSelection {
 }
 
 func repoKCPTreeEntries(ctx *context.Context) ([]repoKCPTreeEntry, error) {
-	if ctx.Repo.Repository.IsEmpty || ctx.Repo.Repository.IsBroken() || ctx.Repo.Commit == nil {
+	if ctx.Repo.Repository.IsEmpty || ctx.Repo.Repository.IsBroken() {
 		return nil, nil
 	}
-	entries, err := ctx.Repo.Commit.Tree.ListEntriesRecursiveFast()
+	commit := ctx.Repo.Commit
+	if commit == nil && ctx.Repo.GitRepo != nil {
+		var err error
+		commit, err = ctx.Repo.GitRepo.GetBranchCommit(ctx.Repo.Repository.DefaultBranch)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if commit == nil {
+		return nil, nil
+	}
+	entries, err := commit.Tree.ListEntriesRecursiveFast()
 	if err != nil {
 		return nil, err
 	}

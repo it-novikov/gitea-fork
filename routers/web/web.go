@@ -1259,7 +1259,7 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 		m.Get("/exports", repo.KCPRepoExports)
 		m.Post("/exports", reqRepoAdmin, repo.KCPRepoExportFilesPost)
 		m.Get("/impact", repo.KCPRepoImpact)
-	}, optSignIn, context.RepoAssignment, reqUnitCodeReader)
+	}, optSignIn, context.RepoAssignment, context.RepoRefByDefaultBranch(), reqUnitCodeReader)
 
 	// user/org home, including rss feeds like "/{username}/{reponame}.rss"
 	m.Get("/{username}/{reponame}", optSignIn, webAuth.AllowBasic, context.RepoAssignment, context.RepoRefByType(git.RefTypeBranch), repo.SetEditorconfigIfExists, repo.Home)
