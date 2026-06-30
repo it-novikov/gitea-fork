@@ -11,6 +11,7 @@
 						<p>Code sent to <code>{{.MaskedTarget}}</code>. Codes are single-use and expire quickly.</p>
 					</div>
 					<form class="ui form" action="{{.KCPIdentityChallengeLink}}" method="post">
+						{{.CsrfTokenHtml}}
 						<div class="required field {{if .Err_Code}}error{{end}}">
 							<label for="code">Challenge code</label>
 							<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required autofocus>

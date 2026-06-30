@@ -422,6 +422,21 @@ func SignInPost(ctx *context.Context) {
 	ctx.Redirect(setting.AppSubURL + "/user/two_factor")
 }
 
+func clearKCPIdentityChallengeSession(ctx *context.Context) {
+	for _, key := range []string{
+		kcpIdentityChallengeIDKey,
+		kcpIdentityChallengeModeKey,
+		kcpIdentityChallengePhoneKey,
+		kcpIdentityChallengeChannelKey,
+		kcpIdentityMaskedTargetKey,
+		kcpIdentityRedirectToKey,
+		kcpIdentityDisplayNameKey,
+		kcpIdentityInvitationCodeKey,
+	} {
+		_ = ctx.Session.Delete(key)
+	}
+}
+
 func kcpIdentityStartChallenge(ctx *context.Context) {
 	prepareKCPIdentityPageData(ctx)
 	phone := strings.TrimSpace(ctx.FormString("phone"))
@@ -537,6 +552,7 @@ func IdentityChallengePost(ctx *context.Context) {
 		ctx.ServerError("KYBa Identity shadow user", err)
 		return
 	}
+	clearKCPIdentityChallengeSession(ctx)
 	handleSignIn(ctx, u, ctx.FormBool("remember"))
 }
 

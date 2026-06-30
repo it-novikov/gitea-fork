@@ -257,13 +257,19 @@ func (c Client) Register(ctx context.Context, req RegisterRequest) (RegisterResp
 		return RegisterResponse{Principal: Principal{Subject: "mock-registered-identity", Username: req.DisplayName, DisplayName: req.DisplayName, Email: safeEmail(req.DisplayName), Phone: req.Phone}}, nil
 	}
 	input := struct {
-		Phone       string `json:"phone"`
-		ChallengeID string `json:"challengeId"`
-		Code        string `json:"code"`
+		Phone          string `json:"phone"`
+		DisplayName    string `json:"displayName"`
+		ChallengeID    string `json:"challengeId"`
+		Code           string `json:"code"`
+		InvitationCode string `json:"invitationCode"`
+		ClientID       string `json:"clientId,omitempty"`
 	}{
-		Phone:       req.Phone,
-		ChallengeID: req.ChallengeID,
-		Code:        req.Code,
+		Phone:          req.Phone,
+		DisplayName:    req.DisplayName,
+		ChallengeID:    req.ChallengeID,
+		Code:           req.Code,
+		InvitationCode: req.InvitationCode,
+		ClientID:       req.ClientID,
 	}
 	var out userResponse
 	if err := c.post(ctx, c.settings.RegisterPath, input, &out); err != nil {

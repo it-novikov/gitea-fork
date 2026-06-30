@@ -10,6 +10,7 @@
 						Registration does not grant repository or capsule access automatically. A KYBa administrator must assign roles and grants after account creation.
 					</div>
 					<form class="ui form" action="{{.KCPIdentitySignUpLink}}" method="post">
+						{{.CsrfTokenHtml}}
 						<div class="required field {{if .Err_DisplayName}}error{{end}}">
 							<label for="display_name">Display name</label>
 							<input id="display_name" name="display_name" value="{{.DisplayName}}" placeholder="e.g. d.ivanova" required autofocus>

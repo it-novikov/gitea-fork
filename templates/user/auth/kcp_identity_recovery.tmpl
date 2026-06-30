@@ -15,6 +15,7 @@
 							Recovery invalidates active sessions for this identity. Sensitive actions remain blocked until re-verification succeeds.
 						</div>
 						<form class="ui form ignore-dirty" action="{{.KCPIdentityRecoveryLink}}" method="post">
+						{{.CsrfTokenHtml}}
 							<div class="required field {{if .Err_Phone}}error{{end}}">
 								<label for="phone">Registered phone</label>
 								<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• 44" autocomplete="tel" inputmode="tel" required autofocus>
