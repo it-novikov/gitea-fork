@@ -1,6 +1,6 @@
 # KYBa KCP Native Repository UI Integration
 
-Status: repository-native UI scaffold.
+Status: repository-native UI with persistent KCP model.
 
 ## Purpose
 
@@ -58,7 +58,7 @@ Exporter repositories show:
 - file mode: contract, context, generated, validation, interface;
 - checkbox selection for export preview.
 
-The current scaffold accepts the selection form and proves the request contract. Persistent storage is handled by the KCP repository-interface service/model integration slice.
+The selection form persists selected exported files into `kcp_repository_interface_file`. The repository interface manifest is updated in `kcp_repository_interface`, and observed imports/impact rows are mirrored into the KCP model tables for API and audit use.
 
 ## Consumer repository behavior
 
@@ -78,3 +78,15 @@ This is intentional. It avoids broad cross-repository reads and keeps agent cont
 - `/{owner}/{repo}/kcp/impact` shows dependent maintenance records.
 - The main global navbar does not expose KCP as a separate application.
 - Repository tab active state uses `PageIsRepoKCP`.
+
+
+## Permission model
+
+KCP is layered on top of normal Gitea repository permissions:
+
+- repo admin: all KCP permissions;
+- code reader: `kcp.read` / `kcp.impact.read` read surfaces;
+- code writer: export/import/impact mutation surfaces unless a stricter explicit grant model is configured;
+- explicit grant: `kcp_permission_grant` can authorize precise KCP permissions for user subjects.
+
+This keeps KCP native to repository access while making future fine-grained KYBa grants possible.
