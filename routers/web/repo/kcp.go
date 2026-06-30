@@ -4,10 +4,14 @@
 package repo
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
+
+	kcp_model "code.gitea.io/gitea/models/kcp"
+	unit_model "code.gitea.io/gitea/models/unit"
 
 	"code.gitea.io/gitea/modules/templates"
 	"code.gitea.io/gitea/services/context"
@@ -78,22 +82,45 @@ type repoKCPSelection struct {
 }
 
 // KCPRepoOverview renders the repository-native KYBa KCP overview.
-func KCPRepoOverview(ctx *context.Context) { renderRepoKCP(ctx, "overview") }
+func KCPRepoOverview(ctx *context.Context) {
+	if !repoKCPEnsurePermission(ctx, kcp_model.PermissionRead) {
+		return
+	}
+	renderRepoKCP(ctx, "overview")
+}
 
 // KCPRepoImports renders materialized imported capsule files in repository context.
-func KCPRepoImports(ctx *context.Context) { renderRepoKCP(ctx, "imports") }
+func KCPRepoImports(ctx *context.Context) {
+	if !repoKCPEnsurePermission(ctx, kcp_model.PermissionRead) {
+		return
+	}
+	renderRepoKCP(ctx, "imports")
+}
 
 // KCPRepoExports renders exported repository interfaces and capsule file selection.
-func KCPRepoExports(ctx *context.Context) { renderRepoKCP(ctx, "exports") }
+func KCPRepoExports(ctx *context.Context) {
+	if !repoKCPEnsurePermission(ctx, kcp_model.PermissionRead) {
+		return
+	}
+	renderRepoKCP(ctx, "exports")
+}
 
 // KCPRepoImpact renders impact tasks and generated draft PRs for this repository.
-func KCPRepoImpact(ctx *context.Context) { renderRepoKCP(ctx, "impact") }
+func KCPRepoImpact(ctx *context.Context) {
+	if !repoKCPEnsurePermission(ctx, kcp_model.PermissionImpactRead) {
+		return
+	}
+	renderRepoKCP(ctx, "impact")
+}
 
 // KCPRepoExportFilesPost handles the native repository export-file selection form
 // and renders the submitted preview back into the repository UI.
 func KCPRepoExportFilesPost(ctx *context.Context) {
+	if !repoKCPEnsurePermission(ctx, kcp_model.PermissionExportWrite) {
+		return
+	}
 	selection := repoKCPSelectionFromForm(ctx)
-	ctx.Flash.Success("KYBa KCP export selection preview updated.")
+	ctx.Flash.Success("KYBa KCP export selection saved.")
 	renderRepoKCPWithSelection(ctx, "exports", selection)
 }
 
@@ -102,12 +129,24 @@ func renderRepoKCP(ctx *context.Context, subPage string) {
 }
 
 func renderRepoKCPWithSelection(ctx *context.Context, subPage string, selection repoKCPSelection) {
+	if !selection.Submitted && subPage == "exports" {
+		persisted, err := repoKCPPersistedExportSelection(ctx)
+		if err != nil {
+			ctx.ServerError("repoKCPPersistedExportSelection", err)
+			return
+		}
+		selection = persisted
+	}
 	treeEntries, err := repoKCPTreeEntries(ctx)
 	if err != nil {
 		ctx.ServerError("repoKCPTreeEntries", err)
 		return
 	}
 	model := buildRepoKCPPageData(ctx.Repo.Repository.Name, ctx.Repo.RepoLink, subPage, treeEntries, selection)
+	if err := repoKCPPersistPageModel(ctx, model); err != nil {
+		ctx.ServerError("repoKCPPersistPageModel", err)
+		return
+	}
 	ctx.Data["Title"] = "KYBa KCP - " + ctx.Repo.Repository.FullName()
 	ctx.Data["PageIsRepoKCP"] = true
 	ctx.Data["KCPRepo"] = model
@@ -142,6 +181,141 @@ func buildRepoKCPPageData(repoName, repoLink, subPage string, treeEntries []repo
 	model.Impact = repoKCPImpactRows(repoName, model.ImportedFiles, model.ExportFiles)
 	model.HelpText = "Repository KCP is intentionally embedded in the native repository UI. Imports, exports, file selection and impact are scoped to the current repository so agents do not need broad sibling-repository access."
 	return model
+}
+
+func repoKCPEnsurePermission(ctx *context.Context, permission kcp_model.Permission) bool {
+	if ctx.Repo.IsAdmin() {
+		return true
+	}
+	if ctx.IsSigned {
+		granted, err := kcp_model.HasRepoPermissionGrant(ctx, ctx.Repo.Repository.ID, ctx.Doer.ID, permission)
+		if err != nil {
+			ctx.ServerError("HasRepoPermissionGrant", err)
+			return false
+		}
+		if granted {
+			return true
+		}
+	}
+	switch permission {
+	case kcp_model.PermissionRead, kcp_model.PermissionImpactRead:
+		if ctx.Repo.CanRead(unit_model.TypeCode) {
+			return true
+		}
+	case kcp_model.PermissionExportWrite, kcp_model.PermissionImportWrite, kcp_model.PermissionImpactManage:
+		if ctx.IsSigned && ctx.Repo.CanWrite(unit_model.TypeCode) {
+			return true
+		}
+	}
+	ctx.NotFound(nil)
+	return false
+}
+
+func repoKCPPersistedExportSelection(ctx *context.Context) (repoKCPSelection, error) {
+	files, err := kcp_model.ListRepositoryInterfaceFiles(ctx, ctx.Repo.Repository.ID, repoKCPInterfaceID(ctx.Repo.Repository.Name))
+	if err != nil || len(files) == 0 {
+		return repoKCPSelection{}, err
+	}
+	selection := repoKCPSelection{Submitted: true, Files: map[string]struct{}{}, Dirs: map[string]struct{}{}}
+	for _, file := range files {
+		if file.Selected {
+			selection.Files[file.Path] = struct{}{}
+		}
+	}
+	return selection, nil
+}
+
+func repoKCPPersistPageModel(ctx *context.Context, model repoKCPPageData) error {
+	repoID := ctx.Repo.Repository.ID
+	repoName := ctx.Repo.Repository.Name
+	interfaceID := repoKCPInterfaceID(repoName)
+	manifest, _ := json.Marshal(map[string]any{
+		"schema":         "kyba.kcp.repository-interface.v1",
+		"repo":           repoName,
+		"interface_id":   interfaceID,
+		"selected_files": repoKCPSelectedExportPaths(model.ExportFiles),
+	})
+	if err := kcp_model.UpsertRepositoryInterface(ctx, &kcp_model.RepositoryInterface{
+		RepoID:      repoID,
+		InterfaceID: interfaceID,
+		Kind:        "repository-interface",
+		Version:     "working-tree",
+		Visibility:  "repository-scoped",
+		Manifest:    string(manifest),
+	}); err != nil {
+		return err
+	}
+	if model.SubPage == "exports" {
+		if err := kcp_model.ReplaceRepositoryInterfaceFiles(ctx, repoID, interfaceID, repoKCPInterfaceFileSpecs(model.ExportFiles)); err != nil {
+			return err
+		}
+	}
+	if err := kcp_model.UpsertImportsForRepo(ctx, repoID, repoKCPImportModels(repoID, model.Imports)); err != nil {
+		return err
+	}
+	return kcp_model.ReplaceImpactTasksForRepo(ctx, repoID, repoKCPImpactModels(repoID, model.Impact))
+}
+
+func repoKCPInterfaceFileSpecs(rows []repoKCPFileRow) []kcp_model.RepositoryInterfaceFileSpec {
+	files := make([]kcp_model.RepositoryInterfaceFileSpec, 0)
+	for _, row := range rows {
+		if row.IsDir || !row.Selected {
+			continue
+		}
+		files = append(files, kcp_model.RepositoryInterfaceFileSpec{Path: row.Path, Mode: row.Mode, Selected: row.Selected})
+	}
+	return files
+}
+
+func repoKCPSelectedExportPaths(rows []repoKCPFileRow) []string {
+	paths := make([]string, 0)
+	for _, row := range rows {
+		if !row.IsDir && row.Selected {
+			paths = append(paths, row.Path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func repoKCPImportModels(repoID int64, capsules []repoKCPCapsuleRow) []*kcp_model.RepositoryInterfaceImport {
+	imports := make([]*kcp_model.RepositoryInterfaceImport, 0, len(capsules))
+	for _, capsule := range capsules {
+		imports = append(imports, &kcp_model.RepositoryInterfaceImport{
+			ConsumerRepoID:       repoID,
+			InterfaceID:          capsule.ID,
+			RequiredVersionRange: "*",
+			Mode:                 "materialized",
+			Freshness:            "observed-from-tree",
+			MaterializedRevision: "working-tree",
+		})
+	}
+	return imports
+}
+
+func repoKCPImpactModels(repoID int64, rows []repoKCPImpactRow) []*kcp_model.CapsuleImpactTask {
+	tasks := make([]*kcp_model.CapsuleImpactTask, 0, len(rows))
+	for _, row := range rows {
+		blocked := row.Status == "blocked"
+		status := row.Status
+		if status == "" {
+			status = "open"
+		}
+		tasks = append(tasks, &kcp_model.CapsuleImpactTask{
+			CapsuleID:    row.CapsuleID,
+			RepositoryID: repoID,
+			Policy:       status,
+			Reason:       row.Task,
+			DraftPRTitle: row.DraftPR,
+			Blocked:      blocked,
+			Status:       status,
+		})
+	}
+	return tasks
+}
+
+func repoKCPInterfaceID(repoName string) string {
+	return "kyba.repo." + repoName + ".interface.v1"
 }
 
 func repoKCPSelectionFromForm(ctx *context.Context) repoKCPSelection {
@@ -180,7 +354,7 @@ func repoKCPTreeEntries(ctx *context.Context) ([]repoKCPTreeEntry, error) {
 
 func repoKCPExportRows(repoName string, entries []repoKCPTreeEntry, selection repoKCPSelection) []repoKCPFileRow {
 	files, folders := repoKCPFilesAndFolders(entries, false)
-	capsuleID := "kyba.repo." + repoName + ".interface.v1"
+	capsuleID := repoKCPInterfaceID(repoName)
 	rows := make([]repoKCPFileRow, 0, len(files)+len(folders))
 	for _, folder := range folders {
 		count := countDescendantFiles(folder, files)
@@ -318,7 +492,7 @@ func repoKCPImpactRows(repoName string, importedRows, exportRows []repoKCPFileRo
 		}
 	}
 	if selected > 0 {
-		capsuleID := "kyba.repo." + repoName + ".interface.v1"
+		capsuleID := repoKCPInterfaceID(repoName)
 		rows = append(rows, repoKCPImpactRow{
 			CapsuleID:  capsuleID,
 			Repository: "declared consumers",

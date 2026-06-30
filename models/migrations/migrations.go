@@ -406,6 +406,7 @@ func prepareMigrationTasks() []*migration {
 		newMigration(329, "Add unique constraint for user badge", v1_26.AddUniqueIndexForUserBadge),
 		newMigration(330, "Add name column to webhook", v1_26.AddNameToWebhook),
 		newMigration(331, "Add KYBa KCP repository interfaces and capsule tables", v1_26.AddKYBaKCPRepositoryInterfaces),
+		newMigration(332, "Add KYBa KCP repository file selections and permission grants", v1_26.AddKYBaKCPRepositoryFileSelectionsAndPermissions),
 	}
 	return preparedMigrations
 }

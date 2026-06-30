@@ -51,8 +51,26 @@ The integrated fork exposes admin API draft endpoints under `/api/v1/kcp`:
 
 ## Database
 
-The fork adds Gitea migration `v331` with KCP tables for repository interfaces, imports, impact tasks and archive export runs.
+The fork adds Gitea migrations `v331` and `v332` with KCP tables for repository interfaces, imports, impact tasks, archive export runs, repository file selections and KCP permission grants.
 
 ## Current implementation status
 
-This is a deployable Gitea fork source tree with KCP packages, repository-native routes, templates, migration and API draft. The current route handlers expose deterministic domain data until the next slice wires the service layer to persistent records and KYBa task creation.
+This is a deployable Gitea fork source tree with KCP packages, repository-native routes, templates, migrations and API endpoints. Repository export selections, observed imports and impact rows are now persisted through the KCP model layer. KYBa task creation and draft PR automation remain the next service slice.
+
+
+## KCP permissions
+
+Repository administrators implicitly have all KCP capabilities. Non-admin users can access read/write surfaces through normal Gitea repository permissions or explicit KCP permission grants.
+
+Canonical KCP capabilities:
+
+```text
+kcp.read
+kcp.export.write
+kcp.import.write
+kcp.impact.read
+kcp.impact.manage
+kcp.admin
+```
+
+Explicit grants are stored in `kcp_permission_grant` and can be managed by future admin UI/API work.

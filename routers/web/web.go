@@ -1257,7 +1257,7 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 		m.Get("", repo.KCPRepoOverview)
 		m.Get("/imports", repo.KCPRepoImports)
 		m.Get("/exports", repo.KCPRepoExports)
-		m.Post("/exports", reqRepoAdmin, repo.KCPRepoExportFilesPost)
+		m.Post("/exports", repo.KCPRepoExportFilesPost)
 		m.Get("/impact", repo.KCPRepoImpact)
 	}, optSignIn, context.RepoAssignment, reqUnitCodeReader)
 

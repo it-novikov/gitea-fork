@@ -122,13 +122,13 @@ func DemoDataSet() DemoData {
 	impact, _ := registry.Update(api, true)
 
 	manifest := exporter.Manifest{SchemaVersion: 1, ImportOrder: []string{"gitea-fork", "kyba-ci", "kyba-backend", "kyba-desktop", "kyba"}, FailAmbiguous: true, Targets: []exporter.Target{
-		{Name: "gitea-fork", Description: "Gitea fork, repository hierarchy and interface/capsule UI.", Include: []string{"integrations/gitea-fork/**"}, DependsOn: []string{"kyba"}, GeneratedReadme: true},
-		{Name: "kyba-ci", Description: "CI gates, export checks and draft PR fan-out.", Include: []string{"ci/**"}, DependsOn: []string{"kyba", "gitea-fork"}, GeneratedReadme: true},
-		{Name: "kyba-backend", Description: "Backend services and exported API capsules.", Include: []string{"kotlin/task-workflow/**"}, DependsOn: []string{"kyba"}, GeneratedReadme: true},
-		{Name: "kyba-desktop", Description: "Desktop client and imported capsules.", Include: []string{"kotlin/desktop/**"}, DependsOn: []string{"kyba", "kyba-backend"}, GeneratedReadme: true},
+		{Name: "gitea-fork", Description: "Gitea fork, repository hierarchy and interface/capsule UI.", Include: []string{"routers/**", "templates/repo/kcp/**", "models/kcp/**", "docs/kcp/**"}, DependsOn: []string{"kyba"}, GeneratedReadme: true},
+		{Name: "kyba-ci", Description: "CI gates, export checks and draft PR fan-out.", Include: []string{"ci/**", ".github/**", "deploy/vps/**"}, DependsOn: []string{"kyba", "gitea-fork"}, GeneratedReadme: true},
+		{Name: "kyba-backend", Description: "Backend services and exported API capsules.", Include: []string{"src/**", "kotlin/**", "proto/**", "db/**"}, DependsOn: []string{"kyba"}, GeneratedReadme: true},
+		{Name: "kyba-desktop", Description: "Electron desktop client and imported capsules.", Include: []string{"electron/**", "src/**", "docs/**"}, DependsOn: []string{"kyba", "kyba-backend"}, GeneratedReadme: true},
 		{Name: "kyba", Description: "Project knowledge cell.", Include: []string{"docs/**", "README.md"}, DependsOn: []string{"gitea-fork", "kyba-ci", "kyba-backend", "kyba-desktop"}},
 	}}
-	plan, _ := exporter.BuildPlan(manifest, []string{"integrations/gitea-fork/capsules/capsule.go", "ci/export_multirepo_archives.py", "kotlin/task-workflow/src/main/kotlin/App.kt", "kotlin/desktop/src/main/kotlin/App.kt", "docs/README.md", "README.md"})
+	plan, _ := exporter.BuildPlan(manifest, []string{"routers/web/repo/kcp.go", "models/kcp/kcp.go", "docs/kcp/README.md", "src/offline/persistent.ts", "src/app.py", "docs/README.md", "README.md"})
 	return DemoData{Capsules: registry.List(), Imports: registry.ImportsForConsumer("kyba-desktop"), Impact: impact, Export: plan}
 }
 
