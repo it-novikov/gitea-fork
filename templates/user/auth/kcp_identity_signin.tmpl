@@ -13,6 +13,7 @@
 						<p>Gitea sign-in is delegated to KYBa Identity Service. Enter a registered phone number and verify the one-time challenge.</p>
 					</div>
 					<form class="ui form" action="{{.KCPIdentitySignInLink}}" method="post">
+						{{.CsrfTokenHtml}}
 						<div class="required field {{if .Err_Phone}}error{{end}}">
 							<label for="phone">Registered phone</label>
 							<input id="phone" name="phone" type="tel" value="{{.Phone}}" placeholder="+•• ••• •• 44" autocomplete="tel" inputmode="tel" required autofocus>
