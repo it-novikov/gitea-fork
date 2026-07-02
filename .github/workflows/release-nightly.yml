@@ -113,7 +113,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build regular docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.2.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64,linux/riscv64
@@ -123,7 +123,7 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/go-gitea/gitea:buildcache-rootful
           cache-to: type=registry,ref=ghcr.io/go-gitea/gitea:buildcache-rootful,mode=max
       - name: build rootless docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.2.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64,linux/riscv64
